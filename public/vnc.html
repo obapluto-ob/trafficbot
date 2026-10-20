@@ -1,0 +1,155 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+  <meta name="theme-color" content="#0b0f1a">
+  <title>Live Session — Site Scout</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { background: #0b0f1a; color: #e8edf5; font-family: system-ui, sans-serif; height: 100dvh; display: flex; flex-direction: column; }
+    #toolbar {
+      display: flex; align-items: center; gap: 10px;
+      padding: 10px 14px; background: #111827;
+      border-bottom: 1px solid #1e2d42; flex-shrink: 0;
+    }
+    #toolbar a { color: #7a8fa8; font-size: 12px; text-decoration: none; }
+    #toolbar a:hover { color: #e8edf5; }
+    #status { flex: 1; font-size: 12px; color: #7a8fa8; text-align: center; }
+    #status.connected { color: #86efac; }
+    #status.error { color: #f87171; }
+    #ctrl-btns { display: flex; gap: 6px; }
+    .ctrl-btn {
+      padding: 5px 10px; border-radius: 6px; font-size: 11px; font-weight: 600;
+      border: 1px solid #1e2d42; background: #1a2235; color: #7a8fa8; cursor: pointer;
+    }
+    .ctrl-btn:hover { color: #e8edf5; border-color: #3d5068; }
+    #vnc-container { flex: 1; overflow: hidden; position: relative; background: #000; }
+    #vnc-container canvas { width: 100% !important; height: 100% !important; object-fit: contain; }
+    #overlay {
+      position: absolute; inset: 0; display: flex; flex-direction: column;
+      align-items: center; justify-content: center; gap: 16px; color: #7a8fa8;
+      background: #0b0f1a;
+    }
+    #overlay.hidden { display: none; }
+    .spinner {
+      width: 32px; height: 32px; border: 3px solid #1e2d42;
+      border-top-color: #a78bfa; border-radius: 50%;
+      animation: spin .8s linear infinite;
+    }
+    .spinner.hidden { display: none; }
+    #connect-btn {
+      padding: 12px 32px; border-radius: 10px; font-size: 15px; font-weight: 700;
+      background: #a78bfa; color: #0b0f1a; border: none; cursor: pointer;
+      letter-spacing: .02em;
+    }
+    #connect-btn:hover { background: #c4b5fd; }
+    #connect-btn.hidden { display: none; }
+    #overlay-msg { font-size: 13px; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+  </style>
+</head>
+<body>
+  <div id="toolbar">
+    <a href="/">← Site Scout</a>
+    <div id="status">Connecting…</div>
+    <div id="ctrl-btns">
+      <button class="ctrl-btn" id="btn-viewonly">🖱 Control: ON</button>
+      <button class="ctrl-btn" id="btn-fullscreen">⛶ Full</button>
+      <button class="ctrl-btn" id="btn-ctrl-alt-del">Ctrl+Alt+Del</button>
+    </div>
+  </div>
+  <div id="vnc-container">
+    <div id="overlay">
+      <button id="connect-btn" type="button">▶ Connect</button>
+      <div class="spinner hidden"></div>
+      <div id="overlay-msg">Watch the live browser session</div>
+    </div>
+  </div>
+
+  <script type="module">
+    import RFB from '/vnc/core/rfb.js';
+
+    const params = new URLSearchParams(location.search);
+    const token = params.get('t') || '';
+
+    const statusEl = document.getElementById('status');
+    const overlay = document.getElementById('overlay');
+    const spinner = overlay.querySelector('.spinner');
+    const connectBtn = document.getElementById('connect-btn');
+    const overlayMsg = document.getElementById('overlay-msg');
+    const container = document.getElementById('vnc-container');
+
+    if (!token) {
+      overlayMsg.textContent = 'Access denied — invalid or missing token.';
+      connectBtn.classList.add('hidden');
+      statusEl.textContent = 'Access denied';
+      statusEl.className = 'error';
+    } else {
+      const wsProto = location.protocol === 'https:' ? 'wss:' : 'ws:';
+      const wsUrl = `${wsProto}//${location.host}/vnc-ws?t=${encodeURIComponent(token)}`;
+
+      let rfb = null;
+      let retryTimer = null;
+
+      function connect() {
+        connectBtn.classList.add('hidden');
+        spinner.classList.remove('hidden');
+        overlayMsg.textContent = 'Connecting…';
+        statusEl.textContent = 'Connecting…';
+        statusEl.className = '';
+
+        try {
+          rfb = new RFB(container, wsUrl, { credentials: { password: '' } });
+          rfb.scaleViewport = true;
+          rfb.resizeSession = false;
+          rfb.viewOnly = false;
+
+          rfb.addEventListener('connect', () => {
+            overlay.classList.add('hidden');
+            statusEl.textContent = '● Live';
+            statusEl.className = 'connected';
+            clearTimeout(retryTimer);
+          });
+
+          rfb.addEventListener('disconnect', (e) => {
+            overlay.classList.remove('hidden');
+            spinner.classList.remove('hidden');
+            connectBtn.classList.add('hidden');
+            statusEl.className = 'error';
+            if (e.detail.clean) {
+              statusEl.textContent = 'Disconnected';
+              overlayMsg.textContent = 'Session ended.';
+              spinner.classList.add('hidden');
+              connectBtn.classList.remove('hidden');
+            } else {
+              statusEl.textContent = 'Reconnecting…';
+              overlayMsg.textContent = 'Connection lost — retrying in 3s…';
+              retryTimer = setTimeout(connect, 3000);
+            }
+          });
+        } catch (e) {
+          statusEl.textContent = 'Failed: ' + e.message;
+          statusEl.className = 'error';
+          spinner.classList.add('hidden');
+          connectBtn.classList.remove('hidden');
+        }
+      }
+
+      connectBtn.addEventListener('click', connect);
+    }
+
+    document.getElementById('btn-viewonly').addEventListener('click', () => {
+      if (!rfb) return;
+      rfb.viewOnly = !rfb.viewOnly;
+      document.getElementById('btn-viewonly').textContent = rfb.viewOnly ? '👁 Control: OFF' : '🖱 Control: ON';
+    });
+    document.getElementById('btn-fullscreen').addEventListener('click', () => {
+      document.getElementById('vnc-container').requestFullscreen?.() || document.getElementById('vnc-container').webkitRequestFullscreen?.();
+    });
+    document.getElementById('btn-ctrl-alt-del').addEventListener('click', () => {
+      window.rfb?.sendCtrlAltDel();
+    });
+  </script>
+</body>
+</html>

@@ -1,0 +1,24 @@
+{
+  "manifest_version": 3,
+  "name": "Site Scout — Cookie Helper",
+  "version": "1.0",
+  "description": "Grab your active login tokens from any site and send them to Site Scout in one click — auto-fills the session field so you can audit or open an authenticated browser instantly.",
+  "permissions": ["cookies", "tabs", "storage", "scripting"],
+  "host_permissions": ["<all_urls>"],
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "Site Scout Cookie Helper"
+  },
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [{
+    "matches": ["<all_urls>"],
+    "js": ["content.js"]
+  }],
+  "icons": {
+    "16": "icon.svg",
+    "48": "icon.svg",
+    "128": "icon.svg"
+  }
+}

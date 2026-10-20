@@ -1,0 +1,753 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+  <meta name="theme-color" content="#0b0f1a">
+  <title>Screen Room — Site Scout</title>
+  <style>
+    *{margin:0;padding:0;box-sizing:border-box}
+    body{background:#0b0f1a;color:#e8edf5;font-family:system-ui,sans-serif;height:100dvh;display:flex;flex-direction:column;overflow:hidden}
+    #toolbar{display:flex;align-items:center;gap:8px;padding:9px 14px;background:#111827;border-bottom:1px solid #1e2d42;flex-shrink:0;z-index:10;flex-wrap:wrap}
+    #toolbar a{color:#7a8fa8;font-size:12px;text-decoration:none;white-space:nowrap}
+    #room-id{flex:1;text-align:center;font:600 11px monospace;color:#3d5068;min-width:80px}
+    .tbtn{padding:5px 11px;border-radius:6px;font-size:11px;font-weight:600;border:1px solid #1e2d42;background:#1a2235;color:#7a8fa8;cursor:pointer;white-space:nowrap}
+    .tbtn:hover{color:#e8edf5;border-color:#3d5068}
+    .tbtn.active{background:#7c3aed22;border-color:#7c3aed88;color:#a78bfa}
+    .tbtn.danger{background:#7f1d1d22;border-color:#f8717188;color:#f87171}
+    #main{display:flex;flex:1;overflow:hidden}
+    #panel{width:260px;flex-shrink:0;border-right:1px solid #1e2d42;display:flex;flex-direction:column;overflow:hidden}
+    #panel-head{padding:12px 14px 8px;font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#3d5068;display:flex;align-items:center;justify-content:space-between}
+    #online-count{background:#1a2235;border:1px solid #1e2d42;border-radius:20px;padding:1px 8px;font-size:10px;color:#7a8fa8}
+    #device-list{flex:1;overflow-y:auto;padding:6px 8px;display:flex;flex-direction:column;gap:6px}
+    .device-card{background:#111827;border:1px solid #1e2d42;border-radius:10px;padding:10px 12px;transition:border-color .15s}
+    .device-card:hover{border-color:#3d5068}
+    .device-card.me{border-color:#7c3aed44;background:#7c3aed08}
+    .device-card.sharing{border-color:#86efac66}
+    .dc-top{display:flex;align-items:center;gap:8px;margin-bottom:6px}
+    .dc-icon{width:28px;height:28px;border-radius:7px;display:grid;place-items:center;font-size:14px;flex-shrink:0}
+    .dc-name{font-size:12px;font-weight:600;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+    .dc-badge{font-size:9px;border-radius:4px;padding:1px 5px;border:1px solid}
+    .dc-you{background:#7c3aed22;border-color:#7c3aed44;color:#a78bfa}
+    .dc-live{background:#86efac22;border-color:#86efac44;color:#86efac}
+    .dc-ctrl{background:#fbbf2422;border-color:#fbbf2444;color:#fbbf24}
+    .dc-info{display:flex;flex-direction:column;gap:2px}
+    .dc-row{font-size:10px;color:#3d5068;display:flex;gap:4px}
+    .dc-row span{color:#7a8fa8}
+    .dc-actions{display:flex;gap:5px;margin-top:8px;flex-wrap:wrap}
+    .dc-btn{flex:1;padding:5px 0;border-radius:6px;font-size:10px;font-weight:700;border:none;cursor:pointer;transition:opacity .15s;min-width:60px}
+    .dc-btn:hover{opacity:.85}
+    .dc-btn-watch{background:#0e3a4a;color:#67e8f9;border:1px solid #67e8f944}
+    .dc-btn-cast{background:#7c3aed22;color:#a78bfa;border:1px solid #7c3aed44}
+    .dc-btn-share{background:#86efac22;color:#86efac;border:1px solid #86efac44}
+    .dc-btn-ctrl{background:#fbbf2422;color:#fbbf24;border:1px solid #fbbf2444}
+    #viewer{flex:1;position:relative;background:#000;overflow:hidden;cursor:default}
+    #viewer.ctrl-mode{cursor:crosshair}
+    #remote-video{width:100%;height:100%;object-fit:contain;display:none}
+    #viewer-overlay{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;color:#3d5068;pointer-events:none}
+    #viewer-overlay svg{opacity:.3}
+    #viewer-overlay p{font-size:13px}
+    #ctrl-bar{position:absolute;bottom:0;left:0;right:0;background:#111827cc;backdrop-filter:blur(6px);border-top:1px solid #1e2d42;padding:8px 14px;display:none;align-items:center;gap:10px;font-size:11px;color:#7a8fa8}
+    #ctrl-bar.on{display:flex}
+    #ctrl-indicator{width:8px;height:8px;border-radius:50%;background:#fbbf24;animation:pulse 1.4s infinite;flex-shrink:0}
+    @keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+    #share-preview{position:absolute;bottom:52px;right:12px;width:160px;border-radius:8px;border:2px solid #86efac66;display:none;z-index:5}
+    #vol-bar{position:absolute;top:12px;right:12px;display:none;flex-direction:column;align-items:center;gap:4px;z-index:5}
+    #vol-bar.on{display:flex}
+    #vol-icon{font-size:16px;cursor:pointer}
+    #vol-slider{writing-mode:vertical-lr;direction:rtl;width:24px;height:80px;accent-color:#67e8f9}
+    #toast-wrap{position:fixed;top:60px;right:16px;display:flex;flex-direction:column;gap:8px;z-index:999;pointer-events:none}
+    .toast{background:#111827;border:1px solid #1e2d42;border-radius:12px;padding:14px 16px;max-width:300px;pointer-events:all;animation:slideIn .25s ease}
+    .toast.cast-req{border-color:#a78bfa66}
+    @keyframes slideIn{from{transform:translateX(120%);opacity:0}to{transform:translateX(0);opacity:1}}
+    .toast-title{font-size:12px;font-weight:700;margin-bottom:6px}
+    .toast-body{font-size:11px;color:#7a8fa8;margin-bottom:10px;line-height:1.5}
+    .toast-btns{display:flex;gap:6px}
+    .toast-btn{flex:1;padding:6px 0;border-radius:7px;font-size:11px;font-weight:700;border:none;cursor:pointer}
+    .toast-accept{background:#86efac;color:#0b1a0f}
+    .toast-decline{background:#1a2235;color:#7a8fa8;border:1px solid #1e2d42}
+    /* invite modal */
+    #invite-modal{display:none;position:fixed;inset:0;background:#0b0f1acc;backdrop-filter:blur(8px);z-index:999;align-items:center;justify-content:center}
+    .inv-box{background:#111827;border:1px solid #1e2d42;border-radius:16px;padding:20px;max-width:380px;width:94%}
+    .inv-section{margin-bottom:16px}
+    .inv-label{font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#3d5068;margin-bottom:8px}
+    .inv-device-row{display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:8px;background:#0d1520;border:1px solid #1e2d42;margin-bottom:6px}
+    .inv-device-icon{font-size:16px;flex-shrink:0}
+    .inv-device-name{flex:1;font-size:12px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+    .inv-device-status{font-size:10px;color:#3d5068}
+    .inv-send-btn{padding:5px 12px;border-radius:6px;font-size:11px;font-weight:700;border:none;cursor:pointer;background:#7c3aed22;color:#a78bfa;border:1px solid #7c3aed44;white-space:nowrap}
+    .inv-send-btn.sent{background:#86efac22;color:#86efac;border-color:#86efac44;cursor:default}
+    .inv-link-row{display:flex;gap:6px;align-items:center}
+    .inv-link-input{flex:1;background:#0d1520;border:1px solid #1e2d42;border-radius:7px;padding:8px 10px;font:12px monospace;color:#67e8f9;outline:none;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+    .inv-copy-btn{padding:7px 14px;border-radius:7px;font-size:11px;font-weight:700;border:1px solid #1e2d42;background:#1a2235;color:#7a8fa8;cursor:pointer;white-space:nowrap}
+    .inv-copy-btn:hover{color:#e8edf5}
+    .inv-qr{display:flex;justify-content:center;margin-top:10px}
+    .inv-empty{font-size:11px;color:#3d5068;text-align:center;padding:10px 0}
+    #panel-toggle{display:none}
+    @media(max-width:600px){
+      #panel{position:fixed;inset:0;top:46px;z-index:20;background:#0b0f1a;transform:translateX(-100%);transition:transform .25s;width:100%}
+      #panel.open{transform:translateX(0)}
+      #panel-toggle{display:block}
+    }
+  </style>
+</head>
+<body>
+<div id="toolbar">
+  <a href="/">← Site Scout</a>
+  <div id="room-id">room: …</div>
+  <button class="tbtn" id="btn-invite" title="Copy invite link">🔗 Invite</button>
+  <button class="tbtn" id="btn-qr" title="Show QR code to join">⬛ QR</button>
+  <button class="tbtn" id="btn-share-screen">📤 Share Screen</button>
+  <button class="tbtn danger" id="btn-stop-share" style="display:none">⏹ Stop</button>
+  <button class="tbtn" id="btn-ctrl" style="display:none" title="Toggle remote control of sharer">🖱 Control: OFF</button>
+  <button class="tbtn" id="panel-toggle">👥 Devices</button>
+  <button class="tbtn" id="btn-fs">⛶</button>
+</div>
+
+<!-- QR modal -->
+<div id="invite-modal" style="display:none;position:fixed;inset:0;background:#0b0f1acc;backdrop-filter:blur(8px);z-index:999;align-items:center;justify-content:center">
+  <div class="inv-box">
+    <div class="inv-section">
+      <div class="inv-label">Devices in this room</div>
+      <div id="inv-device-list"><div class="inv-empty">No other devices online yet</div></div>
+    </div>
+    <div class="inv-section">
+      <div class="inv-label">Share link — anyone who opens it joins instantly</div>
+      <div class="inv-link-row">
+        <input class="inv-link-input" id="inv-link-input" readonly>
+        <button class="inv-copy-btn" id="inv-copy-btn">Copy</button>
+      </div>
+      <div class="inv-qr" id="inv-qr-canvas"></div>
+    </div>
+    <button id="inv-close" type="button" style="width:100%;padding:10px;border-radius:8px;background:#1a2235;border:1px solid #1e2d42;color:#7a8fa8;font:600 13px system-ui;cursor:pointer">Close</button>
+  </div>
+</div>
+
+<div id="main">
+  <div id="panel">
+    <div id="panel-head">
+      <span>Devices Online</span>
+      <span id="online-count">0</span>
+    </div>
+    <div id="device-list"></div>
+  </div>
+
+  <div id="viewer">
+    <video id="remote-video" autoplay playsinline></video>
+    <div id="viewer-overlay">
+      <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg>
+      <p id="viewer-msg">Select a device to watch their screen</p>
+    </div>
+    <video id="share-preview" autoplay muted playsinline></video>
+    <div id="vol-bar">
+      <span id="vol-icon">🔊</span>
+      <input id="vol-slider" type="range" min="0" max="1" step="0.05" value="1">
+    </div>
+    <div id="ctrl-bar">
+      <span id="ctrl-indicator"></span>
+      <span>Remote control active — clicks and keys go to sharer's screen</span>
+      <button class="tbtn" id="ctrl-bar-off" style="margin-left:auto">Turn Off</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast-wrap"></div>
+
+<script src="/qrcode.min.js"></script>
+<script>
+// ── Identity ──
+const roomId = (() => {
+  const p = new URLSearchParams(location.search).get('id');
+  if (p) return p;
+  const id = Math.random().toString(36).slice(2,8).toUpperCase();
+  history.replaceState(null,'','/room?id='+id);
+  return id;
+})();
+const myId = (() => {
+  let id = sessionStorage.getItem('ss_room_id');
+  if (!id) { id = Math.random().toString(36).slice(2) + Date.now().toString(36); sessionStorage.setItem('ss_room_id', id); }
+  return id;
+})();
+
+document.getElementById('room-id').textContent = 'room: ' + roomId;
+document.title = 'Room ' + roomId + ' — Site Scout';
+
+// ── Fingerprint ──
+function getFingerprint() {
+  const ua = navigator.userAgent;
+  const isMobile = /Mobi|Android|iPhone|iPad/i.test(ua);
+  const isTablet = /iPad|Tablet/i.test(ua);
+  const os = /Windows/.test(ua) ? 'Windows'
+    : /Mac OS X/.test(ua) && !/iPhone|iPad/.test(ua) ? 'macOS'
+    : /Android/.test(ua) ? 'Android'
+    : /iPhone/.test(ua) ? 'iPhone'
+    : /iPad/.test(ua) ? 'iPad'
+    : /Linux/.test(ua) ? 'Linux' : 'Unknown';
+  const browser = /Edg\//.test(ua) ? 'Edge'
+    : /OPR\/|Opera/.test(ua) ? 'Opera'
+    : /Chrome\//.test(ua) ? 'Chrome'
+    : /Firefox\//.test(ua) ? 'Firefox'
+    : /Safari\//.test(ua) ? 'Safari' : 'Browser';
+  const icon = isMobile && !isTablet ? '📱' : isTablet ? '📟' : os === 'macOS' ? '🍎' : os === 'Windows' ? '🖥️' : '💻';
+  return {
+    id: myId, roomId,
+    name: os + ' · ' + browser, os, browser, icon,
+    screen: screen.width + '×' + screen.height,
+    lang: navigator.language,
+    tz: Intl.DateTimeFormat().resolvedOptions().timeZone,
+    cores: navigator.hardwareConcurrency || '?',
+    mem: navigator.deviceMemory ? navigator.deviceMemory + 'GB' : '?',
+    touch: navigator.maxTouchPoints > 0,
+    platform: navigator.platform || '',
+    sharing: false,
+  };
+}
+const myFp = getFingerprint();
+
+// ── State ──
+const devices = {};
+let myStream = null;
+let peers = {};       // peerId → { pc, dc }  (dc = RTCDataChannel for control)
+let sigIndex = 0;
+let sigTimer = null;
+let watchingId = null;
+let viewerDc = null;  // DataChannel on viewer side for sending control events
+let ctrlMode = false;
+let sseConn = null;
+
+// ── SSE ──
+function connectSSE() {
+  if (sseConn) sseConn.close();
+  sseConn = new EventSource(`/api/room/stream?roomId=${roomId}&deviceId=${myId}`);
+  sseConn.onopen = () => announce();
+  sseConn.onmessage = e => { try { handleRoomEvent(JSON.parse(e.data)); } catch {} };
+  sseConn.onerror = () => setTimeout(connectSSE, 3000);
+}
+
+function handleRoomEvent(ev) {
+  if (ev.type === 'join' || ev.type === 'update') {
+    if (ev.device.id === myId) return;
+    devices[ev.device.id] = ev.device;
+    renderDevices();
+  } else if (ev.type === 'leave') {
+    delete devices[ev.deviceId];
+    renderDevices();
+    if (watchingId === ev.deviceId) showViewerOverlay('Device disconnected');
+  } else if (ev.type === 'invite') {
+    // Another device sent us a direct invite to this room
+    if (ev.toId === myId) {
+      showToast('📨 Room Invite', escHtml(ev.fromName) + ' invited you to join their screen share.', [
+        { label: 'Join', cls: 'toast-accept', cb: () => {} }, // already in room
+      ]);
+    }
+  } else if (ev.type === '_sig') {
+    if (ev.toId === myId) handleIncomingSig(ev.fromId, ev.sigType, ev.sigPayload);
+  } else if (ev.type === 'sync_request') {
+    // Someone joined or re-sync needed — re-announce after small random delay to avoid flood
+    setTimeout(() => announce(), Math.random() * 400);
+  } else if (ev.type === 'cast_request') {
+    if (ev.toId === myId) showCastRequest(ev.fromId, ev.fromName);
+  } else if (ev.type === 'cast_accepted') {
+    if (ev.toId === myId) startSharingTo(ev.fromId);
+  } else if (ev.type === 'cast_declined') {
+    if (ev.toId === myId) showToast('Declined', (devices[ev.fromId]?.name || 'Device') + ' declined.', []);
+  } else if (ev.type === 'watch_request') {
+    if (ev.toId === myId) showWatchRequest(ev.fromId, ev.fromName);
+  } else if (ev.type === 'watch_accepted') {
+    if (ev.toId === myId) _doStartWatching(ev.fromId);
+  } else if (ev.type === 'watch_declined') {
+    if (ev.toId === myId) showToast('Declined', (devices[ev.fromId]?.name || 'Device') + ' declined your watch request.', []);
+  } else if (ev.type === 'ctrl_request') {
+    if (ev.toId === myId) showCtrlRequest(ev.fromId, ev.fromName);
+  } else if (ev.type === 'ctrl_accepted') {
+    if (ev.toId === myId) enableCtrlMode();
+  } else if (ev.type === 'ctrl_declined') {
+    if (ev.toId === myId) showToast('Declined', 'Control request declined.', []);
+  }
+}
+
+// ── Announce ──
+function announce(extra = {}) {
+  fetch('/api/room/announce', { method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ ...myFp, ...extra }) });
+}
+
+function roomEvent(type, toId, extra = {}) {
+  fetch('/api/room/event', { method: 'POST', headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ roomId, type, fromId: myId, fromName: myFp.name, toId, ...extra }) });
+}
+
+// ── Render devices ──
+function renderDevices() {
+  const list = document.getElementById('device-list');
+  const all = [myFp, ...Object.values(devices)];
+  document.getElementById('online-count').textContent = all.length;
+  list.innerHTML = all.map(d => {
+    const isMe = d.id === myId;
+    const amWatching = watchingId === d.id;
+    return `<div class="device-card${isMe?' me':''}${d.sharing?' sharing':''}" data-id="${d.id}">
+      <div class="dc-top">
+        <div class="dc-icon">${d.icon}</div>
+        <div class="dc-name">${escHtml(d.name)}</div>
+        ${isMe ? '<span class="dc-badge dc-you">You</span>' : ''}
+        ${d.sharing ? '<span class="dc-badge dc-live">● Live</span>' : ''}
+        ${amWatching ? '<span class="dc-badge dc-ctrl">Watching</span>' : ''}
+      </div>
+      <div class="dc-info">
+        <div class="dc-row">🖥 <span>${escHtml(d.screen)}</span> &nbsp;🌐 <span>${escHtml(d.lang)}</span></div>
+        <div class="dc-row">🕐 <span>${escHtml(d.tz)}</span></div>
+        <div class="dc-row">⚙️ <span>${d.cores} cores</span> &nbsp;💾 <span>${d.mem}</span></div>
+        <div class="dc-row">👆 <span>${d.touch?'Touch':'No touch'}</span> &nbsp;📟 <span>${escHtml(d.platform||'')}</span></div>
+      </div>
+      ${!isMe ? `<div class="dc-actions">
+        ${d.sharing ? `<button class="dc-btn dc-btn-watch" data-action="watch" data-id="${d.id}">${amWatching?'↺ Reconnect':'👁 Watch'}</button>` : ''}
+        <button class="dc-btn dc-btn-cast" data-action="request" data-id="${d.id}">📤 Request Cast</button>
+        ${d.sharing && amWatching ? `<button class="dc-btn dc-btn-ctrl" data-action="ctrl" data-id="${d.id}">🖱 Control</button>` : ''}
+      </div>` : `<div class="dc-actions">
+        <button class="dc-btn dc-btn-share" data-action="share">${isIOS ? '📷 Share Camera' : '📤 Share My Screen'}</button>
+      </div>`}
+    </div>`;
+  }).join('');
+
+  list.querySelectorAll('[data-action]').forEach(btn => {
+    btn.addEventListener('click', e => {
+      e.stopPropagation();
+      const { action, id: targetId } = btn.dataset;
+      if (action === 'watch') startWatching(targetId);
+      else if (action === 'request') sendCastRequest(targetId);
+      else if (action === 'share') startShareScreen();
+      else if (action === 'ctrl') sendCtrlRequest(targetId);
+    });
+  });
+}
+
+function escHtml(s) {
+  return String(s||'').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+// ── Cast request ──
+function sendCastRequest(toId) {
+  const target = devices[toId];
+  if (!target) return;
+  roomEvent('cast_request', toId);
+  showToast('Request sent', 'Waiting for ' + target.name + ' to accept…', []);
+}
+
+function showCastRequest(fromId, fromName) {
+  showToast('📤 Cast Request', escHtml(fromName) + ' wants to watch your screen.', [
+    { label: 'Accept', cls: 'toast-accept', cb: () => {
+      roomEvent('cast_accepted', fromId);
+      startSharingTo(fromId);
+    }},
+    { label: 'Decline', cls: 'toast-decline', cb: () => roomEvent('cast_declined', fromId) },
+  ], 'cast-req');
+}
+
+// ── Control request ──
+function sendCtrlRequest(toId) {
+  roomEvent('ctrl_request', toId);
+  showToast('Control request sent', 'Waiting for permission…', []);
+}
+
+function showCtrlRequest(fromId, fromName) {
+  showToast('🖱 Control Request', escHtml(fromName) + ' wants to control your screen.', [
+    { label: 'Allow', cls: 'toast-accept', cb: () => roomEvent('ctrl_accepted', fromId) },
+    { label: 'Deny',  cls: 'toast-decline', cb: () => roomEvent('ctrl_declined', fromId) },
+  ], 'cast-req');
+}
+
+function enableCtrlMode() {
+  ctrlMode = true;
+  const btn = document.getElementById('btn-ctrl');
+  btn.textContent = '🖱 Control: ON';
+  btn.classList.add('active');
+  document.getElementById('viewer').classList.add('ctrl-mode');
+  document.getElementById('ctrl-bar').classList.add('on');
+}
+
+function disableCtrlMode() {
+  ctrlMode = false;
+  const btn = document.getElementById('btn-ctrl');
+  btn.textContent = '🖱 Control: OFF';
+  btn.classList.remove('active');
+  document.getElementById('viewer').classList.remove('ctrl-mode');
+  document.getElementById('ctrl-bar').classList.remove('on');
+}
+
+// ── Share screen (system audio + optional mic mixed) ──
+let _audioCtx = null;
+const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
+
+async function startShareScreen() {
+  let displayStream;
+
+  if (isIOS) {
+    // iOS Safari has no getDisplayMedia — use camera as fallback
+    try {
+      displayStream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } },
+        audio: { echoCancellation: true, noiseSuppression: true },
+      });
+    } catch(e) {
+      if (e.name !== 'NotAllowedError') showToast('Camera error', e.message, []);
+      return;
+    }
+    myStream = displayStream;
+  } else {
+    try {
+      displayStream = await navigator.mediaDevices.getDisplayMedia({
+        video: { frameRate: 30, cursor: 'always' },
+        audio: { echoCancellation: false, noiseSuppression: false, sampleRate: 44100 },
+      });
+    } catch(e) {
+      if (e.name === 'NotAllowedError') return;
+      try {
+        displayStream = await navigator.mediaDevices.getDisplayMedia({ video: { frameRate: 30 }, audio: false });
+      } catch { return; }
+    }
+
+    let micStream = null;
+    try {
+      micStream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true }, video: false });
+    } catch {}
+
+    const videoTrack = displayStream.getVideoTracks()[0];
+    const systemAudioTracks = displayStream.getAudioTracks();
+
+    if (systemAudioTracks.length > 0 || micStream) {
+      _audioCtx = new AudioContext();
+      const dest = _audioCtx.createMediaStreamDestination();
+      if (systemAudioTracks.length > 0)
+        _audioCtx.createMediaStreamSource(new MediaStream(systemAudioTracks)).connect(dest);
+      if (micStream)
+        _audioCtx.createMediaStreamSource(micStream).connect(dest);
+      myStream = new MediaStream([videoTrack, dest.stream.getAudioTracks()[0]]);
+    } else {
+      myStream = new MediaStream([videoTrack]);
+    }
+  }
+
+  document.getElementById('share-preview').srcObject = myStream;
+  document.getElementById('share-preview').style.display = 'block';
+  document.getElementById('btn-share-screen').style.display = 'none';
+  document.getElementById('btn-stop-share').style.display = '';
+  myFp.sharing = true;
+  announce({ sharing: true });
+  renderDevices();
+  videoTrack.onended = stopShare;
+  startSigPoll();
+}
+
+async function startSharingTo(viewerId) {
+  if (!myStream) await startShareScreen();
+  if (!myStream) return;
+  if (peers[viewerId]?.pc) { peers[viewerId].pc.close(); }
+  const pc = new RTCPeerConnection({ iceServers: ICE });
+  // DataChannel for receiving control events from viewer
+  const dc = pc.createDataChannel('ctrl', { ordered: true });
+  dc.onmessage = e => handleCtrlEvent(JSON.parse(e.data));
+  peers[viewerId] = { pc, dc };
+  myStream.getTracks().forEach(t => pc.addTrack(t, myStream));
+  pc.onicecandidate = e => { if (e.candidate) sendSig(viewerId, 'ice', e.candidate); };
+  const offer = await pc.createOffer();
+  await pc.setLocalDescription(offer);
+  sendSig(viewerId, 'offer', offer);
+}
+
+// Sharer receives control events and dispatches them into the page
+function handleCtrlEvent(ev) {
+  if (ev.t === 'mousemove' || ev.t === 'mousedown' || ev.t === 'mouseup' || ev.t === 'click') {
+    // Map viewer's normalized coords (0-1) to sharer's viewport
+    const x = ev.x * window.innerWidth;
+    const y = ev.y * window.innerHeight;
+    const el = document.elementFromPoint(x, y);
+    if (!el) return;
+    el.dispatchEvent(new MouseEvent(ev.t, { bubbles: true, cancelable: true, clientX: x, clientY: y, button: ev.b || 0 }));
+  } else if (ev.t === 'wheel') {
+    const x = ev.x * window.innerWidth;
+    const y = ev.y * window.innerHeight;
+    const el = document.elementFromPoint(x, y);
+    if (el) el.dispatchEvent(new WheelEvent('wheel', { bubbles: true, deltaX: ev.dx, deltaY: ev.dy }));
+  } else if (ev.t === 'keydown' || ev.t === 'keyup') {
+    document.activeElement?.dispatchEvent(new KeyboardEvent(ev.t, { bubbles: true, key: ev.k, code: ev.c }));
+  }
+}
+
+function stopShare() {
+  if (_audioCtx) { _audioCtx.close(); _audioCtx = null; }
+  if (myStream) { myStream.getTracks().forEach(t => t.stop()); myStream = null; }
+  Object.values(peers).forEach(p => p.pc?.close());
+  peers = {};
+  document.getElementById('share-preview').style.display = 'none';
+  document.getElementById('btn-share-screen').style.display = '';
+  document.getElementById('btn-stop-share').style.display = 'none';
+  myFp.sharing = false;
+  announce({ sharing: false });
+  renderDevices();
+  clearTimeout(sigTimer);
+}
+
+// ── Watch — requires permission from sharer ──
+function startWatching(targetId) {
+  const target = devices[targetId];
+  if (!target) return;
+  roomEvent('watch_request', targetId);
+  showToast('Watch request sent', 'Waiting for ' + target.name + ' to accept…', []);
+}
+
+function showWatchRequest(fromId, fromName) {
+  showToast('👁 Watch Request', escHtml(fromName) + ' wants to watch your screen.', [
+    { label: 'Allow', cls: 'toast-accept', cb: () => {
+      roomEvent('watch_accepted', fromId);
+      startSharingTo(fromId);
+    }},
+    { label: 'Deny', cls: 'toast-decline', cb: () => roomEvent('watch_declined', fromId) },
+  ], 'cast-req');
+}
+
+function _doStartWatching(sharerId) {
+  watchingId = sharerId;
+  showViewerOverlay('Connecting…');
+  sendSig(sharerId, 'join', null);
+  renderDevices();
+}
+
+function showViewerOverlay(msg) {
+  document.getElementById('remote-video').style.display = 'none';
+  document.getElementById('viewer-overlay').style.display = 'flex';
+  document.getElementById('viewer-msg').textContent = msg;
+  document.getElementById('vol-bar').classList.remove('on');
+  document.getElementById('btn-ctrl').style.display = 'none';
+  disableCtrlMode();
+}
+
+// ── WebRTC signaling — relay via SSE room events (no polling) ──
+const ICE = [
+  { urls: 'stun:stun.l.google.com:19302' },
+  { urls: 'stun:stun1.l.google.com:19302' },
+];
+
+function sendSig(toId, type, payload) {
+  roomEvent('_sig', toId, { sigType: type, sigPayload: payload });
+}
+
+async function startSigPoll() {}
+async function pollSig() {}
+async function handleIncomingSig(fromId, type, payload) {
+  // Am I the viewer receiving from sharer?
+  if (fromId === watchingId) {
+    if (!peers[fromId]) {
+      const pc = new RTCPeerConnection({ iceServers: ICE });
+      pc.ondatachannel = e => {
+        viewerDc = e.channel;
+        viewerDc.onopen = () => { document.getElementById('btn-ctrl').style.display = ''; };
+      };
+      pc.ontrack = e => {
+        const vid = document.getElementById('remote-video');
+        vid.srcObject = e.streams[0];
+        vid.style.display = 'block';
+        document.getElementById('viewer-overlay').style.display = 'none';
+        if (e.streams[0].getAudioTracks().length > 0)
+          document.getElementById('vol-bar').classList.add('on');
+      };
+      pc.onicecandidate = e => { if (e.candidate) sendSig(fromId, 'ice', e.candidate); };
+      pc.onconnectionstatechange = () => {
+        if (pc.connectionState === 'disconnected' || pc.connectionState === 'failed') {
+          showViewerOverlay('Connection lost — reconnecting…');
+          setTimeout(() => _doStartWatching(fromId), 2000);
+        }
+      };
+      peers[fromId] = { pc, dc: null };
+    }
+    const pc = peers[fromId].pc;
+    if (type === 'offer') {
+      await pc.setRemoteDescription(new RTCSessionDescription(payload));
+      const ans = await pc.createAnswer();
+      await pc.setLocalDescription(ans);
+      sendSig(fromId, 'answer', ans);
+    } else if (type === 'ice') {
+      await pc.addIceCandidate(new RTCIceCandidate(payload)).catch(() => {});
+    }
+    return;
+  }
+  // Am I the sharer receiving from a viewer?
+  if (type === 'join') {
+    await startSharingTo(fromId);
+  } else if (type === 'answer' && peers[fromId]?.pc) {
+    await peers[fromId].pc.setRemoteDescription(new RTCSessionDescription(payload)).catch(() => {});
+  } else if (type === 'ice' && peers[fromId]?.pc) {
+    await peers[fromId].pc.addIceCandidate(new RTCIceCandidate(payload)).catch(() => {});
+  }
+}
+
+// ── Remote control input capture (viewer side) ──
+const viewer = document.getElementById('viewer');
+const remoteVideo = document.getElementById('remote-video');
+
+function sendCtrl(ev) {
+  if (!ctrlMode || !viewerDc || viewerDc.readyState !== 'open') return;
+  viewerDc.send(JSON.stringify(ev));
+}
+
+function videoCoords(e) {
+  // Map click position on the <video> element to normalized 0-1 coords
+  const rect = remoteVideo.getBoundingClientRect();
+  // Account for letterboxing (object-fit: contain)
+  const vw = remoteVideo.videoWidth || rect.width;
+  const vh = remoteVideo.videoHeight || rect.height;
+  const scale = Math.min(rect.width / vw, rect.height / vh);
+  const dispW = vw * scale, dispH = vh * scale;
+  const offX = (rect.width - dispW) / 2;
+  const offY = (rect.height - dispH) / 2;
+  const rx = (e.clientX - rect.left - offX) / dispW;
+  const ry = (e.clientY - rect.top - offY) / dispH;
+  return { x: Math.max(0, Math.min(1, rx)), y: Math.max(0, Math.min(1, ry)) };
+}
+
+viewer.addEventListener('mousemove', e => {
+  if (!ctrlMode) return;
+  const c = videoCoords(e);
+  sendCtrl({ t: 'mousemove', ...c });
+});
+viewer.addEventListener('mousedown', e => {
+  if (!ctrlMode) return;
+  e.preventDefault();
+  const c = videoCoords(e);
+  sendCtrl({ t: 'mousedown', ...c, b: e.button });
+});
+viewer.addEventListener('mouseup', e => {
+  if (!ctrlMode) return;
+  const c = videoCoords(e);
+  sendCtrl({ t: 'mouseup', ...c, b: e.button });
+});
+viewer.addEventListener('click', e => {
+  if (!ctrlMode) return;
+  const c = videoCoords(e);
+  sendCtrl({ t: 'click', ...c, b: e.button });
+});
+viewer.addEventListener('wheel', e => {
+  if (!ctrlMode) return;
+  e.preventDefault();
+  sendCtrl({ t: 'wheel', dx: e.deltaX, dy: e.deltaY });
+}, { passive: false });
+document.addEventListener('keydown', e => {
+  if (!ctrlMode) return;
+  sendCtrl({ t: 'keydown', k: e.key, c: e.code });
+});
+document.addEventListener('keyup', e => {
+  if (!ctrlMode) return;
+  sendCtrl({ t: 'keyup', k: e.key, c: e.code });
+});
+
+// ── Volume control ──
+document.getElementById('vol-slider').addEventListener('input', e => {
+  document.getElementById('remote-video').volume = e.target.value;
+});
+document.getElementById('vol-icon').addEventListener('click', () => {
+  const vid = document.getElementById('remote-video');
+  vid.muted = !vid.muted;
+  document.getElementById('vol-icon').textContent = vid.muted ? '🔇' : '🔊';
+});
+
+// ── Toolbar buttons ──
+document.getElementById('btn-share-screen').addEventListener('click', startShareScreen);
+document.getElementById('btn-stop-share').addEventListener('click', stopShare);
+document.getElementById('btn-ctrl').addEventListener('click', () => {
+  ctrlMode ? disableCtrlMode() : enableCtrlMode();
+});
+document.getElementById('ctrl-bar-off').addEventListener('click', disableCtrlMode);
+document.getElementById('btn-fs').addEventListener('click', () => {
+  document.getElementById('viewer').requestFullscreen?.();
+});
+document.getElementById('panel-toggle').addEventListener('click', () => {
+  document.getElementById('panel').classList.toggle('open');
+});
+
+// ── Toast ──
+function showToast(title, body, btns, cls='') {
+  const wrap = document.getElementById('toast-wrap');
+  const t = document.createElement('div');
+  t.className = 'toast' + (cls ? ' '+cls : '');
+  t.innerHTML = `<div class="toast-title">${title}</div><div class="toast-body">${body}</div>`
+    + (btns.length ? `<div class="toast-btns">${btns.map((b,i)=>`<button class="toast-btn ${b.cls}" data-i="${i}">${b.label}</button>`).join('')}</div>` : '');
+  btns.forEach((b,i) => {
+    t.querySelector(`[data-i="${i}"]`)?.addEventListener('click', () => { b.cb(); t.remove(); });
+  });
+  wrap.appendChild(t);
+  if (!btns.length) setTimeout(() => t.remove(), 4000);
+}
+
+// ── Invite modal ──
+const roomUrl = location.href;
+const sentInvites = new Set();
+
+function openInviteModal() {
+  const modal = document.getElementById('invite-modal');
+  // Populate device list
+  const listEl = document.getElementById('inv-device-list');
+  const others = Object.values(devices);
+  if (others.length === 0) {
+    listEl.innerHTML = '<div class="inv-empty">No other devices online yet — share the link below</div>';
+  } else {
+    listEl.innerHTML = others.map(d => {
+      const sent = sentInvites.has(d.id);
+      return `<div class="inv-device-row">
+        <span class="inv-device-icon">${d.icon}</span>
+        <span class="inv-device-name">${escHtml(d.name)}</span>
+        <span class="inv-device-status">${d.sharing ? '● Live' : 'Online'}</span>
+        <button class="inv-send-btn${sent?' sent':''}" data-inv-id="${d.id}" data-inv-name="${escHtml(d.name)}">${sent ? '✓ Invited' : 'Invite'}</button>
+      </div>`;
+    }).join('');
+    listEl.querySelectorAll('.inv-send-btn:not(.sent)').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const toId = btn.dataset.invId;
+        roomEvent('invite', toId);
+        sentInvites.add(toId);
+        btn.textContent = '✓ Invited';
+        btn.classList.add('sent');
+      });
+    });
+  }
+  // Link
+  document.getElementById('inv-link-input').value = roomUrl;
+  // QR
+  const qrEl = document.getElementById('inv-qr-canvas');
+  qrEl.innerHTML = '';
+  if (typeof QRCode !== 'undefined') {
+    new QRCode(qrEl, { text: roomUrl, width: 180, height: 180, colorDark: '#000', colorLight: '#fff' });
+  }
+  modal.style.display = 'flex';
+}
+
+document.getElementById('btn-invite').addEventListener('click', openInviteModal);
+document.getElementById('btn-qr').addEventListener('click', openInviteModal);
+
+document.getElementById('inv-copy-btn').addEventListener('click', async () => {
+  try {
+    await navigator.clipboard.writeText(roomUrl);
+    const btn = document.getElementById('inv-copy-btn');
+    btn.textContent = '✓ Copied!';
+    setTimeout(() => { btn.textContent = 'Copy'; }, 2000);
+  } catch {
+    document.getElementById('inv-link-input').select();
+    document.execCommand('copy');
+  }
+});
+
+document.getElementById('inv-close').addEventListener('click', () => {
+  document.getElementById('invite-modal').style.display = 'none';
+});
+document.getElementById('invite-modal').addEventListener('click', e => {
+  if (e.target === document.getElementById('invite-modal'))
+    document.getElementById('invite-modal').style.display = 'none';
+});
+
+// ── Init ──
+connectSSE();
+renderDevices();
+if (isIOS) document.getElementById('btn-share-screen').textContent = '📷 Share Camera';
+setInterval(() => announce(), 20_000);
+</script>
+</body>
+</html>

@@ -1,0 +1,168 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#0b0f1a">
+  <title>Share Screen — Site Scout</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { background: #0b0f1a; color: #e8edf5; font-family: system-ui, sans-serif; min-height: 100dvh; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 24px; }
+    .card { background: #111827; border: 1px solid #1e2d42; border-radius: 16px; padding: 32px 28px; max-width: 420px; width: 100%; text-align: center; }
+    h1 { font-size: 22px; font-weight: 700; margin-bottom: 8px; }
+    .sub { color: #7a8fa8; font-size: 13px; line-height: 1.6; margin-bottom: 28px; }
+    .btn { display: inline-flex; align-items: center; gap: 8px; padding: 13px 28px; border-radius: 10px; font: 700 14px system-ui; border: none; cursor: pointer; transition: transform .15s; width: 100%; justify-content: center; }
+    .btn:hover { transform: translateY(-1px); }
+    .btn-share { background: linear-gradient(135deg, #7c3aed, #4f46e5); color: #fff; }
+    .btn-stop  { background: #1a2235; border: 1px solid #f87171; color: #f87171; }
+    .btn-copy  { background: #0e3a4a; border: 1px solid #67e8f944; color: #67e8f9; margin-top: 10px; font-size: 13px; padding: 10px 20px; }
+    .status { display: flex; align-items: center; gap: 8px; justify-content: center; font-size: 13px; margin-bottom: 20px; min-height: 22px; }
+    .dot { width: 8px; height: 8px; border-radius: 50%; background: #3d5068; flex-shrink: 0; }
+    .dot.live { background: #86efac; animation: pulse 1.4s infinite; }
+    .dot.error { background: #f87171; }
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
+    .preview { width: 100%; border-radius: 10px; background: #000; margin: 16px 0; display: none; max-height: 200px; object-fit: contain; }
+    .viewer-link { background: #0d1525; border: 1px solid #1e2d42; border-radius: 8px; padding: 10px 12px; font: 11px/1.5 monospace; color: #67e8f9; word-break: break-all; text-align: left; margin-top: 14px; display: none; }
+    .viewers { font-size: 11px; color: #3d5068; margin-top: 10px; }
+    a.back { display: inline-flex; align-items: center; gap: 6px; color: #7a8fa8; font-size: 12px; text-decoration: none; margin-bottom: 20px; }
+    a.back:hover { color: #e8edf5; }
+  </style>
+</head>
+<body>
+  <a class="back" href="/">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 12H5M12 5l-7 7 7 7"/></svg>
+    Back to Site Scout
+  </a>
+  <div class="card">
+    <h1>📺 Share Your Screen</h1>
+    <p class="sub">Click Share Screen, pick your window or tab, then send the viewer link to anyone you want to watch.</p>
+
+    <div class="status"><span class="dot" id="dot"></span><span id="status-text">Ready to share</span></div>
+
+    <video id="preview" class="preview" autoplay muted playsinline></video>
+
+    <button class="btn btn-share" id="btn-share" type="button">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg>
+      Share Screen
+    </button>
+    <button class="btn btn-stop" id="btn-stop" type="button" style="display:none;margin-top:10px">
+      ⏹ Stop Sharing
+    </button>
+
+    <div class="viewer-link" id="viewer-link"></div>
+    <button class="btn btn-copy" id="btn-copy" type="button" style="display:none">📋 Copy viewer link</button>
+    <div class="viewers" id="viewers"></div>
+  </div>
+
+  <script>
+    const params = new URLSearchParams(location.search);
+    let sid = params.get('sid') || (Math.random().toString(36).slice(2) + Date.now().toString(36));
+    // Put sid in URL without reload
+    if (!params.get('sid')) history.replaceState(null, '', '/share?sid=' + sid);
+
+    const viewerUrl = location.origin + '/view?sid=' + sid;
+    document.getElementById('viewer-link').textContent = viewerUrl;
+
+    const dot = document.getElementById('dot');
+    const statusText = document.getElementById('status-text');
+    const preview = document.getElementById('preview');
+    const btnShare = document.getElementById('btn-share');
+    const btnStop = document.getElementById('btn-stop');
+    const btnCopy = document.getElementById('btn-copy');
+    const viewerLinkEl = document.getElementById('viewer-link');
+    const viewersEl = document.getElementById('viewers');
+
+    let stream = null;
+    let peers = {}; // sid → RTCPeerConnection
+    let pollTimer = null;
+    let sigIndex = 0;
+
+    function setStatus(text, state) {
+      statusText.textContent = text;
+      dot.className = 'dot' + (state ? ' ' + state : '');
+    }
+
+    // Poll for viewer ICE/answer signals
+    async function pollSignals() {
+      try {
+        const r = await fetch(`/api/signal/poll?sid=${sid}&after=${sigIndex}&from=viewer`);
+        const d = await r.json();
+        if (d.total) sigIndex = d.total;
+        for (const msg of (d.messages || [])) {
+          const viewerId = msg.viewerId;
+          if (msg.type === 'join') {
+            // New viewer joined — create peer and send offer
+            await createPeerForViewer(viewerId);
+          } else if (msg.type === 'answer' && peers[viewerId]) {
+            await peers[viewerId].setRemoteDescription(new RTCSessionDescription(msg.payload)).catch(() => {});
+          } else if (msg.type === 'ice' && peers[viewerId]) {
+            await peers[viewerId].addIceCandidate(new RTCIceCandidate(msg.payload)).catch(() => {});
+          }
+        }
+      } catch {}
+      if (stream) pollTimer = setTimeout(pollSignals, 1500);
+    }
+
+    async function createPeerForViewer(viewerId) {
+      if (!stream) return;
+      const pc = new RTCPeerConnection({ iceServers: [
+        { urls: 'stun:stun.l.google.com:19302' },
+        { urls: 'stun:stun1.l.google.com:19302' },
+      ]});
+      peers[viewerId] = pc;
+      stream.getTracks().forEach(t => pc.addTrack(t, stream));
+      pc.onicecandidate = e => {
+        if (e.candidate) {
+          fetch('/api/signal', { method: 'POST', headers: { 'content-type': 'application/json' },
+            body: JSON.stringify({ sid, from: 'sharer', viewerId, type: 'ice', payload: e.candidate }) });
+        }
+      };
+      pc.onconnectionstatechange = () => {
+        const count = Object.values(peers).filter(p => p.connectionState === 'connected').length;
+        viewersEl.textContent = count ? `${count} viewer${count > 1 ? 's' : ''} watching` : '';
+      };
+      const offer = await pc.createOffer();
+      await pc.setLocalDescription(offer);
+      fetch('/api/signal', { method: 'POST', headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ sid, from: 'sharer', viewerId, type: 'offer', payload: offer }) });
+    }
+
+    btnShare.addEventListener('click', async () => {
+      try {
+        stream = await navigator.mediaDevices.getDisplayMedia({ video: { frameRate: 30 }, audio: false });
+        preview.srcObject = stream;
+        preview.style.display = 'block';
+        btnShare.style.display = 'none';
+        btnStop.style.display = '';
+        viewerLinkEl.style.display = 'block';
+        btnCopy.style.display = '';
+        setStatus('Sharing — send the link below to viewers', 'live');
+        stream.getVideoTracks()[0].onended = stopSharing;
+        pollSignals();
+      } catch (e) {
+        if (e.name !== 'NotAllowedError') setStatus('Could not start screen share: ' + e.message, 'error');
+      }
+    });
+
+    function stopSharing() {
+      if (stream) { stream.getTracks().forEach(t => t.stop()); stream = null; }
+      clearTimeout(pollTimer);
+      Object.values(peers).forEach(pc => pc.close());
+      peers = {};
+      preview.style.display = 'none';
+      btnShare.style.display = '';
+      btnStop.style.display = 'none';
+      setStatus('Sharing stopped', '');
+      viewersEl.textContent = '';
+    }
+
+    btnStop.addEventListener('click', stopSharing);
+
+    btnCopy.addEventListener('click', () => {
+      navigator.clipboard?.writeText(viewerUrl).catch(() => {});
+      btnCopy.textContent = 'Copied ✓';
+      setTimeout(() => { btnCopy.textContent = '📋 Copy viewer link'; }, 2000);
+    });
+  </script>
+</body>
+</html>

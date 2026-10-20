@@ -1,0 +1,497 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#0b0f1a">
+  <title>Pick Cookies — Site Scout</title>
+  <link rel="icon" href="/favicon.ico" type="image/svg+xml">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=JetBrains+Mono:wght@400;600&display=swap">
+  <link rel="stylesheet" href="/app.css">
+  <style>
+    .pk-shell { max-width: 480px; margin: 0 auto; padding: 0 0 80px; }
+    .pk-back { display: inline-flex; align-items: center; gap: 7px; color: var(--muted); font-size: 13px; text-decoration: none; margin-top: 24px; }
+    .pk-back:hover { color: var(--text); }
+
+    .pk-hero { margin: 28px 0 20px; }
+    .pk-hero h1 { font-size: 22px; font-weight: 800; letter-spacing: -.03em; margin-bottom: 4px; }
+    .pk-hero p { color: var(--muted); font-size: 13px; }
+
+    /* platform list */
+    .pk-list { display: flex; flex-direction: column; gap: 8px; }
+    .pk-item {
+      display: flex; align-items: center; gap: 12px;
+      padding: 12px 14px; border-radius: 12px;
+      border: 1px solid var(--line2); background: #0d1525cc;
+      cursor: pointer; transition: border-color .15s, background .15s;
+    }
+    .pk-item:hover, .pk-item.active { border-color: #a78bfa66; background: #a78bfa08; }
+    .pk-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+    .pk-info { flex: 1; min-width: 0; }
+    .pk-name { font-weight: 700; font-size: 14px; }
+    .pk-domain { color: var(--dim); font-size: 11px; font-family: monospace; }
+    .pk-badge {
+      padding: 3px 8px; border-radius: 5px; font-size: 10px; font-weight: 700;
+      background: #a78bfa18; border: 1px solid #a78bfa44; color: var(--purple);
+      flex-shrink: 0;
+    }
+    .pk-badge.plain { background: var(--surface2); border-color: var(--line2); color: var(--muted); }
+
+    /* cookie picker panel */
+    .pk-panel { display: none; }
+    .pk-panel.open { display: block; }
+    .pk-panel-head {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: 14px;
+    }
+    .pk-panel-title { font-size: 18px; font-weight: 800; }
+    .pk-panel-domain { color: var(--dim); font-size: 11px; font-family: monospace; margin-top: 2px; }
+    .pk-back-btn {
+      padding: 6px 12px; border-radius: 8px;
+      border: 1px solid var(--line2); background: var(--surface2);
+      color: var(--muted); font: 600 12px system-ui; cursor: pointer;
+    }
+
+    .ck-section { font-size: 9px; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; margin: 14px 0 7px; color: var(--purple); }
+    .ck-section.auth { color: #818cf8; }
+    .ck-section.other { color: var(--dim); }
+
+    .ck-row {
+      display: flex; align-items: center; gap: 10px;
+      padding: 10px 12px; border-radius: 10px; margin-bottom: 6px;
+      border: 1px solid var(--line); background: var(--surface);
+      cursor: pointer; transition: border-color .12s, background .12s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .ck-row.sel { background: #a78bfa0a; border-color: #a78bfa55; }
+    .ck-row.sel.key { border-color: var(--ck-accent, #a78bfa); background: color-mix(in srgb, var(--ck-accent, #a78bfa) 8%, transparent); }
+    .ck-chk {
+      flex-shrink: 0; width: 18px; height: 18px; border-radius: 5px;
+      border: 1.5px solid var(--line2); display: grid; place-items: center;
+      font-size: 11px; color: #fff; transition: all .1s;
+    }
+    .ck-row.sel .ck-chk { background: var(--purple); border-color: var(--purple); }
+    .ck-row.sel.key .ck-chk { background: var(--ck-accent, #a78bfa); border-color: var(--ck-accent, #a78bfa); }
+    .ck-name { flex: 1; font: 600 12px monospace; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .ck-row.sel .ck-name { color: var(--text); }
+    .ck-tag {
+      padding: 2px 6px; border-radius: 4px; font-size: 9px; font-weight: 800;
+      flex-shrink: 0; letter-spacing: .04em;
+    }
+    .ck-tag.key { background: #a78bfa18; border: 1px solid #a78bfa44; color: var(--purple); }
+    .ck-tag.auth { background: #4f46e518; border: 1px solid #4f46e544; color: #818cf8; }
+    .ck-val { font: 10px monospace; color: var(--dim); max-width: 70px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex-shrink: 0; }
+
+    .pk-footer {
+      position: fixed; bottom: 0; left: 0; right: 0;
+      padding: 12px 16px; background: #0b0f1aee;
+      border-top: 1px solid var(--line2);
+      display: flex; gap: 10px; align-items: center;
+      backdrop-filter: blur(12px);
+    }
+    .pk-sel-count { flex: 1; font-size: 12px; color: var(--muted); }
+    .pk-sel-count strong { color: var(--purple); }
+    .pk-toggle {
+      padding: 10px 14px; border-radius: 9px;
+      border: 1px solid var(--line2); background: var(--surface2);
+      color: var(--muted); font: 600 12px system-ui; cursor: pointer;
+    }
+    .pk-send {
+      padding: 12px 20px; border-radius: 10px;
+      background: linear-gradient(135deg, #7c3aed, #4f46e5);
+      color: #fff; font: 700 13px system-ui; border: none; cursor: pointer;
+      box-shadow: 0 4px 16px #7c3aed44;
+    }
+    .pk-send:disabled { opacity: .35; cursor: not-allowed; }
+
+    .pk-empty { text-align: center; padding: 48px 16px; color: var(--dim); font-size: 13px; line-height: 1.7; }
+    .pk-empty strong { color: var(--muted); display: block; margin-bottom: 8px; font-size: 15px; }
+
+    .pk-sent-banner {
+      display: none; text-align: center; padding: 32px 16px;
+      color: var(--green); font-size: 15px; font-weight: 700;
+    }
+    .pk-sent-banner.show { display: block; }
+  </style>
+</head>
+<body>
+  <div class="bg-orbs" aria-hidden="true">
+    <span class="orb orb-1"></span><span class="orb orb-2"></span><span class="orb orb-3"></span>
+  </div>
+  <main class="shell">
+    <div class="pk-shell">
+      <a class="pk-back" href="/">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 12H5M12 5l-7 7 7 7"/></svg>
+        Site Scout
+      </a>
+
+      <!-- Screen share bar (shown when sid present) -->
+      <div id="share-bar" style="display:none;margin-top:16px;padding:12px 14px;border-radius:12px;border:1px solid #a78bfa44;background:#a78bfa08;align-items:center;justify-content:space-between;gap:10px">
+        <div style="font-size:12px;color:#a78bfa;font-weight:600">📺 PC is watching — share your screen?</div>
+        <button id="share-btn" style="padding:8px 16px;border-radius:8px;background:linear-gradient(135deg,#7c3aed,#4f46e5);color:#fff;font:700 12px system-ui;border:none;cursor:pointer">Share Screen</button>
+      </div>
+      <div id="share-bar-ios" style="display:none;margin-top:16px;padding:12px 14px;border-radius:12px;border:1px solid #f8717144;background:#f8717108">
+        <div style="font-size:12px;color:#f87171;font-weight:600">📵 Screen share isn't supported on iOS</div>
+        <div style="font-size:11px;color:var(--muted);margin-top:4px">Your activity (URL &amp; scroll) is still tracked on the PC.</div>
+      </div>
+
+      <!-- Platform list view -->
+      <div id="view-list">
+        <div class="pk-hero">
+          <p class="eyebrow"><span class="eyebrow-line"></span> Mobile Cookie Picker <span class="eyebrow-line"></span></p>
+          <h1>Pick your <span class="grad-text">session</span></h1>
+          <p id="pk-subtitle">Tap a platform to select which cookies to send.</p>
+        </div>
+        <!-- Proxy mode banner -->
+        <div id="proxy-banner" style="display:none;padding:12px 14px;border-radius:10px;border:1px solid #67e8f944;background:#0e3a4a55;margin-bottom:14px">
+          <div style="font-size:11px;font-weight:700;color:var(--cyan);margin-bottom:4px">📶 Proxy mode active</div>
+          <div style="font-size:11px;color:var(--muted);line-height:1.6">Cookies captured from your phone traffic appear below automatically. <button id="proxy-clear" type="button" style="background:none;border:none;color:var(--dim);font-size:11px;cursor:pointer;text-decoration:underline">Clear</button></div>
+        </div>
+        <div class="pk-list" id="pk-list"></div>
+        <div class="pk-empty" id="pk-empty" style="display:none">
+          <strong>No cookies found</strong>
+          Use the bookmarklet on a logged-in site, or set your phone WiFi proxy to <strong id="proxy-addr">this PC's IP:8080</strong> and browse normally.
+        </div>
+      </div>
+
+      <!-- Cookie picker view -->
+      <div id="view-pick" class="pk-panel">
+        <div style="margin-top:24px">
+          <div class="pk-panel-head">
+            <div>
+              <div class="pk-panel-title" id="pick-title"></div>
+              <div class="pk-panel-domain" id="pick-domain"></div>
+            </div>
+            <button class="pk-back-btn" id="pick-back">← Back</button>
+          </div>
+          <div id="pick-cookies"></div>
+        </div>
+      </div>
+
+      <div class="pk-sent-banner" id="sent-banner">
+        ✓ Cookies sent to Site Scout!<br>
+        <a href="/" style="color:var(--purple);font-size:13px;font-weight:400">Open Session →</a>
+      </div>
+    </div>
+  </main>
+
+  <!-- sticky footer shown when in picker view -->
+  <div class="pk-footer" id="pk-footer" style="display:none">
+    <div class="pk-sel-count"><strong id="sel-num">0</strong> selected</div>
+    <button class="pk-toggle" id="pk-toggle">Select all</button>
+    <button class="pk-send" id="pk-send" disabled>Send to Site Scout →</button>
+  </div>
+
+  <script>
+  // ── PLATFORMS registry (mirrors extension) ──
+  const PLATFORMS = [
+    { name:"Instagram",    domain:"instagram.com",   color:"#e1306c", keys:["sessionid","csrftoken","ds_user_id","rur","mid","ig_did"] },
+    { name:"Facebook",     domain:"facebook.com",    color:"#1877f2", keys:["c_user","xs","fr","datr","sb"] },
+    { name:"Twitter / X",  domain:"twitter.com",     color:"#1da1f2", keys:["auth_token","ct0","twid","kdt"] },
+    { name:"Twitter / X",  domain:"x.com",           color:"#e7e9ea", keys:["auth_token","ct0","twid","kdt"] },
+    { name:"TikTok",       domain:"tiktok.com",      color:"#fe2c55", keys:["sessionid","sessionid_ss","sid_guard","uid_tt","csrf_session_id"] },
+    { name:"YouTube",      domain:"youtube.com",     color:"#ff0000", keys:["SID","HSID","SSID","APISID","SAPISID","LOGIN_INFO","__Secure-1PSID","__Secure-3PSID"] },
+    { name:"Google",       domain:"google.com",      color:"#4285f4", keys:["SID","HSID","SSID","APISID","SAPISID","NID","__Secure-1PSID","__Secure-3PSID"] },
+    { name:"LinkedIn",     domain:"linkedin.com",    color:"#0a66c2", keys:["li_at","JSESSIONID","liap","li_gc"] },
+    { name:"Reddit",       domain:"reddit.com",      color:"#ff4500", keys:["reddit_session","token_v2","csv"] },
+    { name:"Amazon",       domain:"amazon.com",      color:"#ff9900", keys:["session-id","ubid-main","x-main","at-main"] },
+    { name:"Netflix",      domain:"netflix.com",     color:"#e50914", keys:["NetflixId","SecureNetflixId","memclid"] },
+    { name:"Spotify",      domain:"spotify.com",     color:"#1db954", keys:["sp_dc","sp_key"] },
+    { name:"GitHub",       domain:"github.com",      color:"#f0f6fc", keys:["user_session","__Host-user_session_same_site","dotcom_user","logged_in"] },
+    { name:"Discord",      domain:"discord.com",     color:"#5865f2", keys:["__dcfduid","__sdcfduid"] },
+    { name:"Snapchat",     domain:"snapchat.com",    color:"#ffcc00", keys:["hermes_cookie","sc-a-session"] },
+    { name:"Pinterest",    domain:"pinterest.com",   color:"#e60023", keys:["_auth","_pinterest_sess","csrftoken"] },
+    { name:"Twitch",       domain:"twitch.tv",       color:"#9147ff", keys:["auth-token","twilight-user","persistent"] },
+    { name:"PayPal",       domain:"paypal.com",      color:"#003087", keys:["cookie_check","PYPF","X-PP-SILOVER"] },
+    { name:"Coinbase",     domain:"coinbase.com",    color:"#0052ff", keys:["session","_coinbase_session"] },
+    { name:"Binance",      domain:"binance.com",     color:"#f0b90b", keys:["p20t","cr00","s9r1"] },
+    { name:"Robinhood",    domain:"robinhood.com",   color:"#00c805", keys:["session","csrftoken"] },
+    { name:"Notion",       domain:"notion.so",       color:"#ffffff", keys:["token_v2","notion_user_id"] },
+    { name:"Slack",        domain:"slack.com",       color:"#4a154b", keys:["d","d-s","b"] },
+    { name:"OnlyFans",     domain:"onlyfans.com",    color:"#00aff0", keys:["sess","fp","st","auth_id"] },
+    { name:"Roblox",       domain:"roblox.com",      color:"#e02020", keys:[".ROBLOSECURITY","RBXEventTrackerV2"] },
+    { name:"Steam",        domain:"steampowered.com",color:"#1b2838", keys:["steamLoginSecure","sessionid"] },
+    { name:"Ally Bank",    domain:"ally.com",        color:"#6d2077", keys:["Ally-CIAM-Token","allyRememberMe","pr_session"] },
+    { name:"Truist",       domain:"truist.com",      color:"#4b1f78", keys:["diatrst-tkn","OLBRMData"] },
+    { name:"Gemini",       domain:"gemini.com",      color:"#00dcfa", keys:["gemini_logged_in","__ssid"] },
+  ];
+
+  const NOISE = /^(_ga$|_gid$|_fbp$|_fbc$|_gcl_|__utm|_hjid|amplitude|mixpanel|intercom|consent|gdpr|cookie_notice|CookieConsent|banner)/i;
+  const AUTH_RE = /session|sess|token|auth|login|logged|user_id|uid|account|jwt|access|refresh|csrf|xsrf|remember|persist|bearer|secure|credential|identity/i;
+
+  function matchPlatform(domain) {
+    const clean = domain.replace(/^\./, "");
+    return PLATFORMS.find(p => clean === p.domain || clean.endsWith("." + p.domain)) || null;
+  }
+
+  function classify(name, platform) {
+    if (platform && platform.keys.includes(name)) return "key";
+    if (NOISE.test(name)) return "noise";
+    if (AUTH_RE.test(name)) return "auth";
+    return "other";
+  }
+
+  // ── Parse cookies from URL param ──
+  const qp = new URLSearchParams(location.search);
+  const mirrorSid = qp.get('sid') || '';
+  history.replaceState(null, "", "/pick");
+
+  // ── Mirror: push scroll/nav events to PC ──
+  if (mirrorSid) {
+    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+    if (isIOS) {
+      document.getElementById('share-bar-ios').style.display = 'block';
+    } else {
+      document.getElementById('share-bar').style.display = 'flex';
+    }
+    let lastScrollY = -1;
+    function pushMirror(action) {
+      const pct = document.documentElement.scrollHeight > window.innerHeight
+        ? Math.round(window.scrollY / (document.documentElement.scrollHeight - window.innerHeight) * 100)
+        : 0;
+      if (!action && Math.abs(window.scrollY - lastScrollY) < 5) return;
+      lastScrollY = window.scrollY;
+      fetch('/api/mirror/push', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          sid: mirrorSid,
+          url: location.href,
+          title: document.title,
+          scrollY: Math.round(window.scrollY),
+          scrollPct: pct,
+          action: action || null,
+        }),
+      }).catch(() => {});
+    }
+    pushMirror('connected');
+    let scrollTimer;
+    window.addEventListener('scroll', () => {
+      clearTimeout(scrollTimer);
+      scrollTimer = setTimeout(() => pushMirror(null), 120);
+    }, { passive: true });
+    setInterval(() => pushMirror(null), 3000);
+
+    // ── WebRTC screen share ──
+    const shareBtn = document.getElementById('share-btn');
+    shareBtn.addEventListener('click', async () => {
+      if (!navigator.mediaDevices?.getDisplayMedia) {
+        document.getElementById('share-bar').style.display = 'none';
+        document.getElementById('share-bar-ios').style.display = 'block';
+        return;
+      }
+      try {
+        const stream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: false });
+        shareBtn.textContent = 'Streaming ●';
+        shareBtn.style.background = '#16a34a';
+        const pc = new RTCPeerConnection({ iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] });
+        stream.getTracks().forEach(t => pc.addTrack(t, stream));
+        let signalIdx = 0;
+        pc.onicecandidate = e => {
+          if (e.candidate) {
+            fetch('/api/signal', { method: 'POST', headers: { 'content-type': 'application/json' },
+              body: JSON.stringify({ sid: mirrorSid, from: 'phone', type: 'ice', payload: e.candidate }) });
+          }
+        };
+        // Poll for PC answer
+        const poll = setInterval(async () => {
+          const r = await fetch(`/api/signal/poll?sid=${mirrorSid}&after=${signalIdx}`).then(r => r.json()).catch(() => ({ messages: [] }));
+          for (const msg of r.messages) {
+            if (msg.type === 'answer') pc.setRemoteDescription(new RTCSessionDescription(msg.payload)).catch(() => {});
+            if (msg.type === 'ice') pc.addIceCandidate(new RTCIceCandidate(msg.payload)).catch(() => {});
+          }
+          if (r.total) signalIdx = r.total;
+        }, 1000);
+        stream.getTracks()[0].onended = () => { clearInterval(poll); pc.close(); shareBtn.textContent = 'Share Screen'; shareBtn.style.background = ''; };
+        const offer = await pc.createOffer();
+        await pc.setLocalDescription(offer);
+        fetch('/api/signal', { method: 'POST', headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ sid: mirrorSid, from: 'phone', type: 'offer', payload: offer }) });
+      } catch (err) {
+        if (err.name !== 'NotAllowedError') shareBtn.textContent = 'Failed';
+      }
+    });
+  }
+
+  const rawCookies = qp.get("cookies") ? decodeURIComponent(qp.get("cookies")) : "";
+  const fromDomain = qp.get("domain") || "";
+
+  function parsePairs(raw, domain) {
+    const groups = {};
+    const pairs = raw.split(";").map(s => {
+      const eq = s.indexOf("=");
+      if (eq < 1) return null;
+      return { name: s.slice(0, eq).trim(), value: s.slice(eq + 1).trim() };
+    }).filter(Boolean);
+    for (const c of pairs) {
+      if (NOISE.test(c.name)) continue;
+      let key = null, platform = null;
+      if (domain) {
+        platform = matchPlatform(domain);
+        key = platform ? platform.domain : "domain:" + domain;
+      }
+      if (!key) {
+        for (const p of PLATFORMS) {
+          if (p.keys.includes(c.name)) { platform = p; key = p.domain; break; }
+        }
+      }
+      if (!key) key = domain ? "domain:" + domain : "__unknown";
+      if (!groups[key]) groups[key] = { platform, domain: domain || key.replace("domain:", ""), cookies: [] };
+      groups[key].cookies.push(c);
+    }
+    return groups;
+  }
+
+  // Merge bookmarklet cookies + proxy cookies into groupList
+  let groupList = [];
+  const masterGroups = parsePairs(rawCookies, fromDomain);
+
+  async function mergeProxyCookies() {
+    try {
+      const res = await fetch("/api/proxy-cookies");
+      const data = await res.json();
+      if (data.length) {
+        document.getElementById("proxy-banner").style.display = "block";
+        for (const { domain, cookies } of data) {
+          const raw = cookies.map(c => `${c.name}=${c.value}`).join("; ");
+          const g = parsePairs(raw, domain);
+          Object.assign(masterGroups, g);
+        }
+      }
+    } catch {}
+    groupList = Object.values(masterGroups).filter(g => g.cookies.length > 0);
+    renderList();
+  }
+
+  const listEl = document.getElementById("pk-list");
+  const emptyEl = document.getElementById("pk-empty");
+
+  function renderList() {
+    listEl.innerHTML = "";
+    if (!groupList.length) {
+      listEl.style.display = "none";
+      emptyEl.style.display = "block";
+    } else {
+      listEl.style.display = "";
+      emptyEl.style.display = "none";
+      groupList.forEach((g, i) => {
+        const color = g.platform ? g.platform.color : "#3d5068";
+        const name = g.platform ? g.platform.name : g.domain;
+        const keyCount = g.cookies.filter(c => classify(c.name, g.platform) === "key").length;
+        const div = document.createElement("div");
+        div.className = "pk-item";
+        div.innerHTML = `
+          <div class="pk-dot" style="background:${color}"></div>
+          <div class="pk-info">
+            <div class="pk-name">${name}</div>
+            <div class="pk-domain">${g.domain}</div>
+          </div>
+          <div class="pk-badge ${keyCount ? "" : "plain"}">${g.cookies.length} cookies${keyCount ? ` · ${keyCount} key` : ""}</div>`;
+        div.addEventListener("click", () => openPicker(i));
+        listEl.appendChild(div);
+      });
+    }
+  }
+
+  mergeProxyCookies();
+  // Poll proxy cookies every 4s while on list view
+  const proxyPoll = setInterval(() => {
+    if (currentIdx === null) mergeProxyCookies();
+  }, 4000);
+
+  document.getElementById("proxy-clear").addEventListener("click", () => {
+    fetch("/api/proxy-cookies", { method: "DELETE" }).then(() => {
+      Object.keys(masterGroups).forEach(k => delete masterGroups[k]);
+      groupList = [];
+      renderList();
+      document.getElementById("proxy-banner").style.display = "none";
+    });
+  });
+
+  // ── Cookie picker ──
+  let currentIdx = null;
+  let selected = {};
+
+  function openPicker(idx) {
+    currentIdx = idx;
+    const g = groupList[idx];
+    selected = {};
+    g.cookies.forEach(c => { selected[c.name] = true; });
+
+    document.getElementById("pick-title").textContent = g.platform ? g.platform.name : g.domain;
+    document.getElementById("pick-domain").textContent = g.domain;
+    document.getElementById("view-list").style.display = "none";
+    document.getElementById("view-pick").classList.add("open");
+    document.getElementById("pk-footer").style.display = "flex";
+    renderCookies();
+  }
+
+  function renderCookies() {
+    const g = groupList[currentIdx];
+    const accent = g.platform ? g.platform.color : "#a78bfa";
+    const keys    = g.cookies.filter(c => classify(c.name, g.platform) === "key");
+    const auths   = g.cookies.filter(c => classify(c.name, g.platform) === "auth");
+    const others  = g.cookies.filter(c => classify(c.name, g.platform) === "other");
+
+    function row(c, kind) {
+      const on = !!selected[c.name];
+      const isKey = kind === "key";
+      const tag = isKey
+        ? `<span class="ck-tag key" style="background:${accent}18;border-color:${accent}44;color:${accent}">KEY</span>`
+        : kind === "auth" ? `<span class="ck-tag auth">AUTH</span>` : "";
+      return `<div class="ck-row ${on?"sel":""} ${isKey?"key":""}" data-name="${c.name}" style="--ck-accent:${accent}">
+        <div class="ck-chk">${on?"✓":""}</div>
+        <div class="ck-name">${c.name}</div>
+        ${tag}
+        <div class="ck-val">${c.value.slice(0,14)}${c.value.length>14?"…":""}</div>
+      </div>`;
+    }
+
+    let html = "";
+    if (keys.length)   html += `<div class="ck-section">Essential — required for login</div>` + keys.map(c => row(c,"key")).join("");
+    if (auths.length)  html += `<div class="ck-section auth">Auth cookies</div>` + auths.map(c => row(c,"auth")).join("");
+    if (others.length) html += `<div class="ck-section other">Other</div>` + others.map(c => row(c,"other")).join("");
+
+    const el = document.getElementById("pick-cookies");
+    el.innerHTML = html;
+    el.querySelectorAll(".ck-row").forEach(r => {
+      r.addEventListener("click", () => {
+        selected[r.dataset.name] = !selected[r.dataset.name];
+        renderCookies();
+      });
+    });
+
+    const selCount = Object.values(selected).filter(Boolean).length;
+    document.getElementById("sel-num").textContent = selCount;
+    document.getElementById("pk-send").disabled = selCount === 0;
+    document.getElementById("pk-toggle").textContent = selCount === g.cookies.length ? "Deselect all" : "Select all";
+  }
+
+  document.getElementById("pick-back").addEventListener("click", () => {
+    document.getElementById("view-list").style.display = "";
+    document.getElementById("view-pick").classList.remove("open");
+    document.getElementById("pk-footer").style.display = "none";
+    currentIdx = null;
+  });
+
+  document.getElementById("pk-toggle").addEventListener("click", () => {
+    const g = groupList[currentIdx];
+    const selCount = Object.values(selected).filter(Boolean).length;
+    const all = selCount < g.cookies.length;
+    g.cookies.forEach(c => { selected[c.name] = all; });
+    renderCookies();
+  });
+
+  document.getElementById("pk-send").addEventListener("click", () => {
+    const g = groupList[currentIdx];
+    const chosen = g.cookies.filter(c => selected[c.name]);
+    const cookieStr = chosen.map(c => `${c.name}=${c.value}`).join("; ");
+    if (mirrorSid) pushMirror('sent-to-scout');
+    sessionStorage.setItem("ss_cookies", cookieStr);
+    sessionStorage.setItem("ss_cookie_url", "https://" + g.domain);
+    sessionStorage.setItem("ss_autolaunch", "1");
+    location.href = "/";
+  });
+  </script>
+</body>
+</html>

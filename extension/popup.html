@@ -1,0 +1,303 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Site Scout Cookie Helper</title>
+  <style>
+    :root {
+      --bg: #0b0f1a;
+      --surface: #111827;
+      --surface2: #1a2235;
+      --line: #1e2d42;
+      --text: #e8edf5;
+      --muted: #7a8fa8;
+      --dim: #3d5068;
+      --purple: #a78bfa;
+      --cyan: #67e8f9;
+      --green: #86efac;
+      --amber: #fcd34d;
+      --red: #f87171;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      width: 360px;
+      background: var(--bg);
+      color: var(--text);
+      font-family: system-ui, sans-serif;
+      font-size: 13px;
+    }
+    .header {
+      padding: 14px 16px 12px;
+      border-bottom: 1px solid var(--line);
+      background: linear-gradient(135deg, #7c3aed18, transparent);
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .brand { display: flex; align-items: center; gap: 8px; }
+    .brand-mark {
+      width: 26px; height: 26px; border-radius: 7px;
+      background: linear-gradient(135deg, #7c3aed, #4f46e5);
+      display: grid; place-items: center;
+      color: #fff; font-weight: 800; font-size: 14px;
+    }
+    .brand-name { font-weight: 700; font-size: 13px; letter-spacing: -.02em; }
+    .brand-name span { color: var(--purple); }
+    .header-sub { color: var(--dim); font-size: 10px; }
+
+    /* tabs */
+    .tabs { display: flex; border-bottom: 1px solid var(--line); }
+    .tab {
+      flex: 1; padding: 9px 0; text-align: center;
+      font: 600 11px system-ui; color: var(--dim);
+      cursor: pointer; border-bottom: 2px solid transparent;
+      transition: color .15s, border-color .15s;
+    }
+    .tab.active { color: var(--purple); border-bottom-color: var(--purple); }
+
+    /* paste mode */
+    .paste-view { padding: 12px; display: flex; flex-direction: column; gap: 8px; }
+    .paste-area {
+      width: 100%; height: 90px; padding: 9px 10px;
+      border: 1px solid var(--line); border-radius: 8px;
+      background: var(--surface); color: var(--text);
+      font: 11px/1.5 monospace; resize: none; outline: none;
+    }
+    .paste-area:focus { border-color: #a78bfa55; }
+    .paste-area::placeholder { color: var(--dim); }
+    .scan-btn {
+      width: 100%; padding: 10px; border-radius: 8px;
+      background: linear-gradient(135deg, #7c3aed, #4f46e5);
+      color: #fff; font: 700 12px system-ui; border: none; cursor: pointer;
+      transition: opacity .15s;
+    }
+    .scan-btn:hover { opacity: .88; }
+    .scan-btn:disabled { opacity: .4; cursor: not-allowed; }
+
+    /* scan results */
+    .scan-results { display: none; flex-direction: column; }
+    .scan-results.show { display: flex; }
+    .scan-header {
+      padding: 8px 14px; border-bottom: 1px solid var(--line);
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .scan-header span { font-size: 11px; color: var(--muted); }
+    .scan-back { background: none; border: 1px solid var(--line); border-radius: 5px; color: var(--dim); font: 600 10px system-ui; padding: 3px 8px; cursor: pointer; }
+    .scan-back:hover { color: var(--text); }
+    .scan-list { max-height: 340px; overflow-y: auto; }
+    .scan-item {
+      padding: 10px 14px; border-bottom: 1px solid #0d1525;
+      display: flex; align-items: center; gap: 10px;
+    }
+    .scan-item-info { flex: 1; min-width: 0; }
+    .scan-item-name { font: 600 12px system-ui; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .scan-item-meta { color: var(--dim); font-size: 10px; font-family: monospace; }
+    .scan-send-btn {
+      padding: 6px 11px; border-radius: 7px; flex-shrink: 0;
+      background: linear-gradient(135deg, #7c3aed, #4f46e5);
+      color: #fff; font: 700 11px system-ui; border: none; cursor: pointer;
+      transition: opacity .15s, transform .1s;
+    }
+    .scan-send-btn:hover { opacity: .88; transform: translateY(-1px); }
+    .scan-send-btn.sent { background: #166534; border: 1px solid #86efac33; color: var(--green); cursor: default; transform: none; }
+
+    .search-wrap { padding: 10px 12px; border-bottom: 1px solid var(--line); }
+    .search {
+      width: 100%; padding: 8px 10px;
+      border: 1px solid var(--line); border-radius: 8px;
+      background: var(--surface); color: var(--text);
+      font: 12px system-ui; outline: none;
+    }
+    .search:focus { border-color: #a78bfa55; }
+    .search::placeholder { color: var(--dim); }
+
+    .platform-list { max-height: 320px; overflow-y: auto; }
+    .platform-item {
+      display: flex; align-items: center; gap: 10px;
+      padding: 10px 14px; border-bottom: 1px solid #0d1525;
+      cursor: pointer; transition: background .1s;
+    }
+    .platform-item:hover { background: var(--surface); }
+    .platform-item.active { background: #a78bfa0a; border-left: 2px solid var(--purple); }
+    .platform-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+    .platform-info { flex: 1; min-width: 0; }
+    .platform-name { font-weight: 600; font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .platform-domain { color: var(--dim); font-size: 10px; font-family: monospace; }
+    .platform-count {
+      padding: 2px 7px; border-radius: 4px;
+      background: var(--surface2); border: 1px solid var(--line);
+      color: var(--muted); font-size: 10px; font-weight: 600; flex-shrink: 0;
+    }
+    .platform-count.has-key { background: #a78bfa18; border-color: #a78bfa44; color: var(--purple); }
+
+    .empty {
+      padding: 32px 16px; text-align: center; color: var(--dim); font-size: 12px; line-height: 1.7;
+    }
+    .empty strong { color: var(--muted); display: block; margin-bottom: 6px; font-size: 13px; }
+
+    .cookie-panel { border-top: 1px solid var(--line); display: none; }
+    .cookie-panel.open { display: block; }
+    .panel-header {
+      padding: 10px 14px 8px;
+      border-bottom: 1px solid var(--line);
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .panel-title { font-weight: 700; font-size: 12px; }
+    .panel-domain { color: var(--dim); font-size: 10px; font-family: monospace; }
+    .back-btn {
+      background: none; border: none; color: var(--dim); cursor: pointer;
+      font-size: 11px; padding: 3px 7px; border-radius: 5px;
+      border: 1px solid var(--line); transition: color .15s;
+    }
+    .back-btn:hover { color: var(--text); }
+
+    .cookie-list { max-height: 220px; overflow-y: auto; padding: 8px 12px; }
+    .section-label {
+      font-size: 9px; font-weight: 800; letter-spacing: .12em;
+      text-transform: uppercase; margin: 8px 0 6px; padding: 0 2px;
+    }
+    .section-label.essential { color: var(--purple); }
+    .section-label.auth { color: #a78bfa99; }
+    .section-label.other { color: var(--dim); }
+
+    .cookie-row {
+      display: flex; align-items: center; gap: 8px;
+      padding: 7px 9px; border-radius: 7px; margin-bottom: 4px;
+      border: 1px solid var(--line); cursor: pointer;
+      transition: background .1s, border-color .1s;
+    }
+    .cookie-row:hover { background: var(--surface); }
+    .cookie-row.selected { background: #a78bfa0a; border-color: #a78bfa44; }
+    .cookie-row.selected.key-cookie { border-color: var(--accent, #a78bfa); background: color-mix(in srgb, var(--accent, #a78bfa) 8%, transparent); }
+    .chk {
+      flex-shrink: 0; width: 15px; height: 15px; border-radius: 4px;
+      border: 1.5px solid var(--line); background: transparent;
+      display: grid; place-items: center; font-size: 9px; color: #fff;
+      transition: all .1s;
+    }
+    .cookie-row.selected .chk { background: var(--purple); border-color: var(--purple); }
+    .cookie-row.selected.key-cookie .chk { background: var(--accent, #a78bfa); border-color: var(--accent, #a78bfa); }
+    .cookie-name-wrap { flex: 1; min-width: 0; }
+    .cookie-name { font: 600 11px monospace; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .cookie-role { font: 10px/1.3 system-ui; color: var(--dim); margin-top: 1px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .cookie-row.selected .cookie-name { color: var(--text); }
+    .cookie-row.selected .cookie-role { color: var(--muted); }
+    .cookie-badge {
+      padding: 1px 6px; border-radius: 3px; font-size: 9px; font-weight: 800;
+      letter-spacing: .05em; flex-shrink: 0;
+    }
+    .badge-key { background: #a78bfa18; border: 1px solid #a78bfa44; color: var(--purple); }
+    .badge-auth { background: #4f46e518; border: 1px solid #4f46e544; color: #818cf8; }
+    .cookie-val { font: 10px monospace; color: var(--dim); max-width: 60px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex-shrink: 0; }
+
+    .panel-footer {
+      padding: 10px 12px;
+      border-top: 1px solid var(--line);
+      display: flex; gap: 7px; align-items: center;
+    }
+    .sel-count { color: var(--dim); font-size: 11px; flex: 1; text-align: center; }
+    .sel-count strong { color: var(--purple); }
+    .toggle-all-btn {
+      padding: 7px 11px; border-radius: 7px;
+      background: var(--surface2); border: 1px solid var(--line);
+      color: var(--muted); font: 600 11px system-ui; cursor: pointer;
+      transition: color .15s, border-color .15s;
+      white-space: nowrap;
+    }
+    .toggle-all-btn:hover { color: var(--text); border-color: var(--dim); }
+    .use-btn {
+      padding: 9px 14px; border-radius: 8px;
+      background: linear-gradient(135deg, #7c3aed, #4f46e5);
+      color: #fff; font: 700 12px system-ui; border: none; cursor: pointer;
+      box-shadow: 0 3px 12px #7c3aed33;
+      transition: opacity .15s, transform .1s;
+      white-space: nowrap;
+    }
+    .use-btn:hover { opacity: .9; transform: translateY(-1px); }
+    .use-btn:disabled { opacity: .35; cursor: not-allowed; transform: none; }
+
+    .toast {
+      position: fixed; bottom: 12px; left: 50%; transform: translateX(-50%);
+      padding: 8px 16px; border-radius: 8px;
+      background: #166534; border: 1px solid #86efac44;
+      color: var(--green); font-size: 12px; font-weight: 600;
+      opacity: 0; transition: opacity .2s; pointer-events: none; white-space: nowrap;
+    }
+    .toast.show { opacity: 1; }
+
+    ::-webkit-scrollbar { width: 4px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: var(--line); border-radius: 2px; }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <div class="brand">
+      <div class="brand-mark">S</div>
+      <div>
+        <div class="brand-name">Site<span>Scout</span></div>
+        <div class="header-sub">Cookie Helper</div>
+      </div>
+    </div>
+    <div style="text-align:right">
+      <div id="total-count" style="color:var(--purple);font-weight:700;font-size:13px">—</div>
+      <div style="color:var(--dim);font-size:10px">platforms</div>
+    </div>
+  </div>
+
+  <!-- tabs -->
+  <div class="tabs">
+    <div class="tab active" id="tab-browser">Browser Cookies</div>
+    <div class="tab" id="tab-paste">Paste &amp; Scan</div>
+  </div>
+
+  <!-- browser tab content -->
+  <div id="view-browser">
+    <div style="padding:8px 12px;border-bottom:1px solid var(--line);display:flex;gap:6px;align-items:center">
+      <input id="scout-url" placeholder="Site Scout URL (e.g. https://xxx.ngrok-free.dev)" autocomplete="off" spellcheck="false"
+        style="flex:1;padding:6px 8px;border:1px solid var(--line);border-radius:6px;background:var(--surface);color:var(--text);font:11px monospace;outline:none">
+      <button id="save-url" style="padding:5px 10px;border-radius:6px;background:#7c3aed;color:#fff;border:none;cursor:pointer;font:600 11px system-ui">Save</button>
+    </div>
+    <div class="search-wrap">
+      <input class="search" id="search" placeholder="Search platforms..." autocomplete="off" spellcheck="false">
+    </div>
+    <div class="platform-list" id="platform-list">
+      <div class="empty"><strong>Loading...</strong>Reading your browser cookies</div>
+    </div>
+    <div class="cookie-panel" id="cookie-panel">
+      <div class="panel-header">
+        <div>
+          <div class="panel-title" id="panel-title"></div>
+          <div class="panel-domain" id="panel-domain"></div>
+        </div>
+        <button class="back-btn" id="back-btn">Back</button>
+      </div>
+      <div class="cookie-list" id="cookie-list"></div>
+      <div class="panel-footer">
+        <button class="toggle-all-btn" id="toggle-all-btn">Deselect all</button>
+        <div class="sel-count"><strong id="sel-num">0</strong> selected</div>
+        <button class="use-btn" id="use-btn" disabled>Send to Site Scout →</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- paste & scan tab content -->
+  <div id="view-paste" style="display:none">
+    <div class="paste-view">
+      <textarea class="paste-area" id="paste-input" placeholder="Paste any cookie dump here — mixed cookies from multiple sites, DevTools exports, raw headers, anything. The scanner will sort them out."></textarea>
+      <button class="scan-btn" id="scan-btn">Scan cookies</button>
+    </div>
+    <div class="scan-results" id="scan-results">
+      <div class="scan-header">
+        <span id="scan-summary"></span>
+        <button class="scan-back" id="scan-back">← New scan</button>
+      </div>
+      <div class="scan-list" id="scan-list"></div>
+    </div>
+  </div>
+  </div>
+
+  <div class="toast" id="toast">Cookies sent to Site Scout</div>
+
+  <script src="popup.js"></script>
+</body>
+</html>

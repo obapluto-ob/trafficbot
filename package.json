@@ -1,0 +1,19 @@
+{
+  "name": "site-scout",
+  "version": "1.0.0",
+  "private": true,
+  "description": "A safety-conscious website audit MVP",
+  "scripts": {
+    "start": "node server.js",
+    "test": "node --test"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "@scure/bip39": "^2.4.0",
+    "playwright": "^1.64.0",
+    "playwright-extra": "^4.3.6",
+    "puppeteer-extra-plugin-stealth": "^2.11.2"
+  }
+}
